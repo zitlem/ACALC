@@ -18,6 +18,7 @@ The unit converter with live dual display — type a value in one unit and see t
 
 - [ ] Standard calculator with basic arithmetic operations (+, -, x, /)
 - [ ] Unit converter with live dual display (type in one, see the other update instantly)
+- [ ] Math expressions in unit input fields (e.g., type "25.4 + 10" in mm field, evaluates then converts)
 - [ ] Length conversion (mm, cm, m, km, inches, feet, yards, miles)
 - [ ] Weight/mass conversion (mg, g, kg, oz, lb, ton)
 - [ ] Volume conversion (ml, L, tsp, tbsp, cup, fl oz, gallon)
