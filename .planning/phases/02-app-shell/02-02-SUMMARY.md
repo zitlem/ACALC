@@ -148,6 +148,16 @@ None - no external service configuration required.
 - Phase 4 (Converter) can replace ConverterScreen content and add ConverterViewModel
 - Navigation back stack is single-entry per tab — Phases 3/4 may need to add `rememberSavedStateNavEntryDecorator()` and `rememberViewModelStoreNavEntryDecorator()` to entryDecorators when ViewModels are introduced
 
+## Self-Check: PASSED
+
+- FOUND: app/src/main/kotlin/com/acalc/ui/AppShell.kt
+- FOUND: app/src/main/kotlin/com/acalc/ui/screens/CalculatorScreen.kt
+- FOUND: app/src/main/kotlin/com/acalc/ui/screens/ConverterScreen.kt
+- FOUND: .planning/phases/02-app-shell/02-02-SUMMARY.md
+- FOUND: commit 2f0ff63 (Task 1)
+- FOUND: commit 867b893 (Task 2)
+- FOUND: app/build/outputs/apk/debug/app-debug.apk
+
 ---
 *Phase: 02-app-shell*
 *Completed: 2026-04-02*
