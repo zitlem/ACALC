@@ -30,7 +30,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Temperature conversions use the correct offset-aware formula (e.g., `32°F = 0°C`, `0°C = 273.15 K`)
   4. All unit categories (length, weight, volume, temperature, area, speed) are represented with the full unit sets defined in requirements
   5. Unit tests cover all unit pairs and expression edge cases; the test suite passes cleanly
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 01-01-PLAN.md — Android Gradle project skeleton and unit enum types
+- [ ] 01-02-PLAN.md — ExpressionEvaluator (TDD: custom recursive-descent parser)
+- [ ] 01-03-PLAN.md — ConversionEngine (TDD: BigDecimal conversion for 6 categories)
 
 ### Phase 2: App Shell
 **Goal**: Users can launch the app and navigate between two tabs with Material 3 theming applied
@@ -88,7 +92,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Domain Foundation | 0/? | Not started | - |
+| 1. Domain Foundation | 0/3 | Planning complete | - |
 | 2. App Shell | 0/? | Not started | - |
 | 3. Calculator | 0/? | Not started | - |
 | 4. Unit Converter | 0/? | Not started | - |
