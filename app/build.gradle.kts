@@ -36,6 +36,7 @@ dependencies {
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.navigation3.runtime)
     implementation(libs.navigation3.ui)
+    implementation(libs.material)
 
     debugImplementation(libs.compose.ui.tooling)
 
