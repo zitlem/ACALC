@@ -17,10 +17,15 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.acalc.ui.screens.CalculatorScreen
 import com.acalc.ui.screens.ConverterScreen
+import kotlinx.serialization.Serializable
 
-// Route keys for Navigation3 back stack — must implement NavKey
+// Route keys for Navigation3 back stack — must implement NavKey and be @Serializable
 sealed interface TabRoute : NavKey
+
+@Serializable
 data object CalculatorRoute : TabRoute
+
+@Serializable
 data object ConverterRoute : TabRoute
 
 @Composable
