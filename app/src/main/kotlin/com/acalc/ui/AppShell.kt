@@ -11,16 +11,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation3.runtime.entry
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.acalc.ui.screens.CalculatorScreen
 import com.acalc.ui.screens.ConverterScreen
 
-// Route keys for Navigation3 back stack
-// These are simple objects used as keys — Navigation3 uses Any type
-sealed interface TabRoute
+// Route keys for Navigation3 back stack — must implement NavKey
+sealed interface TabRoute : NavKey
 data object CalculatorRoute : TabRoute
 data object ConverterRoute : TabRoute
 

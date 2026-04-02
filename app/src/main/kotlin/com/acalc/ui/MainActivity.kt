@@ -11,7 +11,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AcalcTheme {
-                // AppShell will be added in Plan 02
+                AppShell()
             }
         }
     }
