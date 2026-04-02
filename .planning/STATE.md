@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 02 context gathered
-last_updated: "2026-04-02T12:45:57.736Z"
+status: executing
+stopped_at: Completed 02-app-shell 02-01-PLAN.md
+last_updated: "2026-04-02T13:05:05.474Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** Unit converter with live dual display — type a value in one unit and see the converted result update in real-time, especially mm/cm to inches
-**Current focus:** Phase 01 — domain-foundation
+**Current focus:** Phase 02 — app-shell
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 02 (app-shell) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-domain-foundation P01 | 35 | 2 tasks | 10 files |
 | Phase 01-domain-foundation P02 | 5 | 2 tasks | 2 files |
 | Phase 01-domain-foundation P03 | 2 | 2 tasks | 2 files |
+| Phase 02-app-shell P01 | 3 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 01-domain-foundation]: BigDecimal string constructor used throughout ConversionEngine — avoids floating-point representation errors in conversion factors
 - [Phase 01-domain-foundation]: Generic convertMultiplicative<T>() reuses logic across 5 multiplicative unit categories via type parameter and factor map
 - [Phase 01-domain-foundation]: Temperature always converts through Celsius intermediate — reduces error surface and avoids direct cross-unit formulas
+- [Phase 02-app-shell]: com.google.android.material:material added as dependency — compose-material3 alone does NOT provide Theme.Material3.DayNight.NoActionBar XML style; the View-based material library is required as XML resource provider
+- [Phase 02-app-shell]: enableEdgeToEdge() must be called before setContent {} in ComponentActivity.onCreate — calling after causes incorrect system bar colors on first frame
 
 ### Pending Todos
 
@@ -86,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T12:45:57.733Z
-Stopped at: Phase 02 context gathered
-Resume file: .planning/phases/02-app-shell/02-CONTEXT.md
+Last session: 2026-04-02T13:05:05.470Z
+Stopped at: Completed 02-app-shell 02-01-PLAN.md
+Resume file: None

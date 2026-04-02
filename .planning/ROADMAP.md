@@ -47,7 +47,7 @@ Plans:
   4. Edge-to-edge display is enabled and system bars do not obscure content
 **Plans:** 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — XML theme stubs, AndroidManifest, Material You theming, MainActivity with edge-to-edge
+- [x] 02-01-PLAN.md — XML theme stubs, AndroidManifest, Material You theming, MainActivity with edge-to-edge
 - [ ] 02-02-PLAN.md — Navigation3 AppShell with bottom NavigationBar and placeholder screens
 **UI hint**: yes
 
