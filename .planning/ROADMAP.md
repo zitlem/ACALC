@@ -13,7 +13,7 @@ ACALC is built inside-out: pure-Kotlin domain objects first (no Android dependen
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Domain Foundation** - Pure-Kotlin expression evaluator and conversion engine, fully unit-tested before any UI exists
-- [ ] **Phase 2: App Shell** - Two-tab navigation with Material 3 theming; placeholder screens for Calculator and Converter
+- [x] **Phase 2: App Shell** - Two-tab navigation with Material 3 theming; placeholder screens for Calculator and Converter (completed 2026-04-02)
 - [ ] **Phase 3: Calculator** - Fully functional arithmetic calculator with expression display, error handling, and number formatting
 - [ ] **Phase 4: Unit Converter** - Live bidirectional converter with expression-aware input across 6 unit categories
 - [ ] **Phase 5: Polish and APK** - Copy to clipboard, swap units, display edge cases, and verified installable APK build
@@ -45,10 +45,10 @@ Plans:
   2. User can tap the bottom navigation bar to switch between Calculator and Converter tabs; the active tab is visually indicated
   3. Material 3 dynamic theming is applied and the app color scheme responds to the device wallpaper color
   4. Edge-to-edge display is enabled and system bars do not obscure content
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 02-01-PLAN.md — XML theme stubs, AndroidManifest, Material You theming, MainActivity with edge-to-edge
-- [ ] 02-02-PLAN.md — Navigation3 AppShell with bottom NavigationBar and placeholder screens
+- [x] 02-02-PLAN.md — Navigation3 AppShell with bottom NavigationBar and placeholder screens
 **UI hint**: yes
 
 ### Phase 3: Calculator
@@ -96,7 +96,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Domain Foundation | 2/3 | In Progress|  |
-| 2. App Shell | 0/2 | Not started | - |
+| 2. App Shell | 2/2 | Complete   | 2026-04-02 |
 | 3. Calculator | 0/? | Not started | - |
 | 4. Unit Converter | 0/? | Not started | - |
 | 5. Polish and APK | 0/? | Not started | - |
