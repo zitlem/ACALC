@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Domain Foundation** - Pure-Kotlin expression evaluator and conversion engine, fully unit-tested before any UI exists
 - [x] **Phase 2: App Shell** - Two-tab navigation with Material 3 theming; placeholder screens for Calculator and Converter (completed 2026-04-02)
-- [ ] **Phase 3: Calculator** - Fully functional arithmetic calculator with expression display, error handling, and number formatting
+- [x] **Phase 3: Calculator** - Fully functional arithmetic calculator with expression display, error handling, and number formatting (completed 2026-04-02)
 - [ ] **Phase 4: Unit Converter** - Live bidirectional converter with expression-aware input across 6 unit categories
 - [ ] **Phase 5: Polish and APK** - Copy to clipboard, swap units, display edge cases, and verified installable APK build
 
@@ -61,10 +61,10 @@ Plans:
   3. User can press C to clear all input and backspace to delete the last character
   4. User can use the % key and the result is calculated correctly
   5. The display shows the full expression being built (not just the last number), and division by zero shows a readable error message rather than crashing
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 03-01-PLAN.md — CalculatorViewModel with TDD (expression logic, formatting, error handling)
-- [ ] 03-02-PLAN.md — CalculatorScreen UI (Material 3 button grid, display area, ViewModel wiring)
+- [x] 03-02-PLAN.md — CalculatorScreen UI (Material 3 button grid, display area, ViewModel wiring)
 **UI hint**: yes
 
 ### Phase 4: Unit Converter
@@ -100,6 +100,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Domain Foundation | 2/3 | In Progress|  |
 | 2. App Shell | 2/2 | Complete   | 2026-04-02 |
-| 3. Calculator | 1/2 | In Progress|  |
+| 3. Calculator | 2/2 | Complete   | 2026-04-02 |
 | 4. Unit Converter | 0/? | Not started | - |
 | 5. Polish and APK | 0/? | Not started | - |
