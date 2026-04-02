@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Android Gradle project skeleton and unit enum types
 - [x] 01-02-PLAN.md — ExpressionEvaluator (TDD: custom recursive-descent parser)
-- [ ] 01-03-PLAN.md — ConversionEngine (TDD: BigDecimal conversion for 6 categories)
+- [x] 01-03-PLAN.md — ConversionEngine (TDD: BigDecimal conversion for 6 categories)
 
 ### Phase 2: App Shell
 **Goal**: Users can launch the app and navigate between two tabs with Material 3 theming applied
