@@ -61,9 +61,9 @@ Plans:
   3. User can press C to clear all input and backspace to delete the last character
   4. User can use the % key and the result is calculated correctly
   5. The display shows the full expression being built (not just the last number), and division by zero shows a readable error message rather than crashing
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 03-01-PLAN.md — CalculatorViewModel with TDD (expression logic, formatting, error handling)
+- [x] 03-01-PLAN.md — CalculatorViewModel with TDD (expression logic, formatting, error handling)
 - [ ] 03-02-PLAN.md — CalculatorScreen UI (Material 3 button grid, display area, ViewModel wiring)
 **UI hint**: yes
 
@@ -100,6 +100,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Domain Foundation | 2/3 | In Progress|  |
 | 2. App Shell | 2/2 | Complete   | 2026-04-02 |
-| 3. Calculator | 0/2 | Not started | - |
+| 3. Calculator | 1/2 | In Progress|  |
 | 4. Unit Converter | 0/? | Not started | - |
 | 5. Polish and APK | 0/? | Not started | - |

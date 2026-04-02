@@ -7,13 +7,13 @@
 
 ### Calculator
 
-- [ ] **CALC-01**: User can perform basic arithmetic (+, -, x, /)
-- [ ] **CALC-02**: User can input decimal numbers
-- [ ] **CALC-03**: User can clear all input (C) and backspace last character
-- [ ] **CALC-04**: User can calculate percentages
-- [ ] **CALC-05**: User can see the full expression while typing (not just last number)
-- [ ] **CALC-06**: User sees readable error messages for invalid operations (division by zero)
-- [ ] **CALC-07**: Large numbers display with thousands separators
+- [x] **CALC-01**: User can perform basic arithmetic (+, -, x, /)
+- [x] **CALC-02**: User can input decimal numbers
+- [x] **CALC-03**: User can clear all input (C) and backspace last character
+- [x] **CALC-04**: User can calculate percentages
+- [x] **CALC-05**: User can see the full expression while typing (not just last number)
+- [x] **CALC-06**: User sees readable error messages for invalid operations (division by zero)
+- [x] **CALC-07**: Large numbers display with thousands separators
 
 ### Unit Converter
 
@@ -69,13 +69,13 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CALC-01 | Phase 3 | Pending |
-| CALC-02 | Phase 3 | Pending |
-| CALC-03 | Phase 3 | Pending |
-| CALC-04 | Phase 3 | Pending |
-| CALC-05 | Phase 3 | Pending |
-| CALC-06 | Phase 3 | Pending |
-| CALC-07 | Phase 3 | Pending |
+| CALC-01 | Phase 3 | Complete |
+| CALC-02 | Phase 3 | Complete |
+| CALC-03 | Phase 3 | Complete |
+| CALC-04 | Phase 3 | Complete |
+| CALC-05 | Phase 3 | Complete |
+| CALC-06 | Phase 3 | Complete |
+| CALC-07 | Phase 3 | Complete |
 | CONV-01 | Phase 4 | Pending |
 | CONV-02 | Phase 4 | Pending |
 | CONV-03 | Phase 4 | Pending |
