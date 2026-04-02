@@ -3,9 +3,9 @@ package com.acalc.ui.screens
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -186,7 +186,7 @@ private fun DigitBtn(
         shape = shape,
         modifier = modifier
             .padding(4.dp)
-            .aspectRatio(1f)
+            .height(64.dp)
     ) {
         Text(text = label, style = MaterialTheme.typography.titleLarge)
     }
@@ -204,7 +204,7 @@ private fun OperatorBtn(
         shape = shape,
         modifier = modifier
             .padding(4.dp)
-            .aspectRatio(1f)
+            .height(64.dp)
     ) {
         Text(text = label, style = MaterialTheme.typography.titleLarge)
     }
@@ -222,7 +222,7 @@ private fun ActionBtn(
         shape = shape,
         modifier = modifier
             .padding(4.dp)
-            .aspectRatio(1f)
+            .height(64.dp)
     ) {
         Text(text = label, style = MaterialTheme.typography.titleLarge)
     }
@@ -243,7 +243,7 @@ private fun EqualsBtn(
         ),
         modifier = modifier
             .padding(4.dp)
-            .aspectRatio(1f)
+            .height(64.dp)
     ) {
         Text(text = "=", style = MaterialTheme.typography.titleLarge)
     }
