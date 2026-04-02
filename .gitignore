@@ -1,0 +1,23 @@
+# Gradle files
+.gradle/
+build/
+app/build/
+
+# Local properties (machine-specific SDK path)
+local.properties
+
+# Android Studio
+.idea/
+*.iml
+*.iws
+
+# Generated
+*.apk
+*.aab
+*.ap_
+*.class
+*.dex
+
+# OS
+.DS_Store
+Thumbs.db
