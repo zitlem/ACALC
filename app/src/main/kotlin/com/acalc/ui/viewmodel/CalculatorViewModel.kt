@@ -1,5 +1,6 @@
 package com.acalc.ui.viewmodel
 
+import androidx.lifecycle.ViewModel
 import com.acalc.domain.ExpressionEvaluator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +13,7 @@ data class CalculatorState(
     val isError: Boolean = false
 )
 
-class CalculatorViewModel {
+class CalculatorViewModel : ViewModel() {
 
     private val evaluator = ExpressionEvaluator()
 
