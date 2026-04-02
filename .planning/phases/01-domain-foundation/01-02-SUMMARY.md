@@ -117,3 +117,11 @@ None - no external service configuration required.
 ---
 *Phase: 01-domain-foundation*
 *Completed: 2026-04-02*
+
+## Self-Check: PASSED
+
+- FOUND: app/src/main/kotlin/com/acalc/domain/ExpressionEvaluator.kt
+- FOUND: app/src/test/kotlin/com/acalc/domain/ExpressionEvaluatorTest.kt
+- FOUND: .planning/phases/01-domain-foundation/01-02-SUMMARY.md
+- FOUND commit: 1aae4c3 (test RED phase)
+- FOUND commit: 845c05c (feat GREEN phase)

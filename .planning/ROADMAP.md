@@ -45,7 +45,10 @@ Plans:
   2. User can tap the bottom navigation bar to switch between Calculator and Converter tabs; the active tab is visually indicated
   3. Material 3 dynamic theming is applied and the app color scheme responds to the device wallpaper color
   4. Edge-to-edge display is enabled and system bars do not obscure content
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — XML theme stubs, AndroidManifest, Material You theming, MainActivity with edge-to-edge
+- [ ] 02-02-PLAN.md — Navigation3 AppShell with bottom NavigationBar and placeholder screens
 **UI hint**: yes
 
 ### Phase 3: Calculator
@@ -93,7 +96,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Domain Foundation | 2/3 | In Progress|  |
-| 2. App Shell | 0/? | Not started | - |
+| 2. App Shell | 0/2 | Not started | - |
 | 3. Calculator | 0/? | Not started | - |
 | 4. Unit Converter | 0/? | Not started | - |
 | 5. Polish and APK | 0/? | Not started | - |
