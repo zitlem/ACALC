@@ -34,7 +34,7 @@
 ### App Shell
 
 - [x] **APP-01**: Material 3 / Material You dynamic theming
-- [ ] **APP-02**: Bottom navigation between Calculator and Converter
+- [x] **APP-02**: Bottom navigation between Calculator and Converter
 - [ ] **APP-03**: Builds as installable APK (offline, no network permissions)
 
 ## v2 Requirements
@@ -90,7 +90,7 @@
 | CONV-12 | Phase 5 | Pending |
 | CONV-13 | Phase 4 | Pending |
 | APP-01 | Phase 2 | Complete |
-| APP-02 | Phase 2 | Pending |
+| APP-02 | Phase 2 | Complete |
 | APP-03 | Phase 5 | Pending |
 
 **Coverage:**
