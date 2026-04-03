@@ -77,7 +77,10 @@ Plans:
   3. User can select any unit category (Length, Weight, Volume, Temperature, Area, Speed) and all units defined in requirements are available in both unit selectors
   4. Switching between categories and returning restores the previous value and unit pair for that category
   5. Length category defaults to mm and inches as the initial unit pair when first opened
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 04-01-PLAN.md — ConverterViewModel TDD (state model, bidirectional conversion, per-category state, activeField guard)
+- [ ] 04-02-PLAN.md — ConverterScreen UI (category tabs, input fields, unit dropdowns, ViewModel wiring)
 **UI hint**: yes
 
 ### Phase 5: Polish and APK
@@ -101,5 +104,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Domain Foundation | 2/3 | In Progress|  |
 | 2. App Shell | 2/2 | Complete   | 2026-04-02 |
 | 3. Calculator | 2/2 | Complete   | 2026-04-02 |
-| 4. Unit Converter | 0/? | Not started | - |
+| 4. Unit Converter | 0/2 | Not started | - |
 | 5. Polish and APK | 0/? | Not started | - |
