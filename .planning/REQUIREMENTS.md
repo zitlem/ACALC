@@ -17,19 +17,19 @@
 
 ### Unit Converter
 
-- [ ] **CONV-01**: Conversion updates live as user types (no "convert" button)
-- [ ] **CONV-02**: Both input fields are editable (bidirectional conversion)
-- [ ] **CONV-03**: User can type math expressions in unit input fields (e.g., "25.4 + 10")
-- [ ] **CONV-04**: Length conversion (mm, cm, m, km, inches, feet, yards, miles)
-- [ ] **CONV-05**: Weight conversion (mg, g, kg, oz, lb, ton)
-- [ ] **CONV-06**: Volume conversion (ml, L, tsp, tbsp, cup, fl oz, gallon)
-- [ ] **CONV-07**: Temperature conversion (Celsius, Fahrenheit, Kelvin)
-- [ ] **CONV-08**: Area conversion (sq mm, sq cm, sq m, sq km, sq in, sq ft, acres)
-- [ ] **CONV-09**: Speed conversion (m/s, km/h, mph, knots)
-- [ ] **CONV-10**: Switching categories retains previous input state per category
+- [x] **CONV-01**: Conversion updates live as user types (no "convert" button)
+- [x] **CONV-02**: Both input fields are editable (bidirectional conversion)
+- [x] **CONV-03**: User can type math expressions in unit input fields (e.g., "25.4 + 10")
+- [x] **CONV-04**: Length conversion (mm, cm, m, km, inches, feet, yards, miles)
+- [x] **CONV-05**: Weight conversion (mg, g, kg, oz, lb, ton)
+- [x] **CONV-06**: Volume conversion (ml, L, tsp, tbsp, cup, fl oz, gallon)
+- [x] **CONV-07**: Temperature conversion (Celsius, Fahrenheit, Kelvin)
+- [x] **CONV-08**: Area conversion (sq mm, sq cm, sq m, sq km, sq in, sq ft, acres)
+- [x] **CONV-09**: Speed conversion (m/s, km/h, mph, knots)
+- [x] **CONV-10**: Switching categories retains previous input state per category
 - [ ] **CONV-11**: Swap units button to flip from/to units
 - [ ] **CONV-12**: Copy converted result to clipboard
-- [ ] **CONV-13**: Sensible default unit pairs per category (mm -> in for length)
+- [x] **CONV-13**: Sensible default unit pairs per category (mm -> in for length)
 
 ### App Shell
 
@@ -76,19 +76,19 @@
 | CALC-05 | Phase 3 | Complete |
 | CALC-06 | Phase 3 | Complete |
 | CALC-07 | Phase 3 | Complete |
-| CONV-01 | Phase 4 | Pending |
-| CONV-02 | Phase 4 | Pending |
-| CONV-03 | Phase 4 | Pending |
-| CONV-04 | Phase 4 | Pending |
-| CONV-05 | Phase 4 | Pending |
-| CONV-06 | Phase 4 | Pending |
-| CONV-07 | Phase 4 | Pending |
-| CONV-08 | Phase 4 | Pending |
-| CONV-09 | Phase 4 | Pending |
-| CONV-10 | Phase 4 | Pending |
+| CONV-01 | Phase 4 | Complete |
+| CONV-02 | Phase 4 | Complete |
+| CONV-03 | Phase 4 | Complete |
+| CONV-04 | Phase 4 | Complete |
+| CONV-05 | Phase 4 | Complete |
+| CONV-06 | Phase 4 | Complete |
+| CONV-07 | Phase 4 | Complete |
+| CONV-08 | Phase 4 | Complete |
+| CONV-09 | Phase 4 | Complete |
+| CONV-10 | Phase 4 | Complete |
 | CONV-11 | Phase 5 | Pending |
 | CONV-12 | Phase 5 | Pending |
-| CONV-13 | Phase 4 | Pending |
+| CONV-13 | Phase 4 | Complete |
 | APP-01 | Phase 2 | Complete |
 | APP-02 | Phase 2 | Complete |
 | APP-03 | Phase 5 | Pending |
