@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Domain Foundation** - Pure-Kotlin expression evaluator and conversion engine, fully unit-tested before any UI exists
 - [x] **Phase 2: App Shell** - Two-tab navigation with Material 3 theming; placeholder screens for Calculator and Converter (completed 2026-04-02)
 - [x] **Phase 3: Calculator** - Fully functional arithmetic calculator with expression display, error handling, and number formatting (completed 2026-04-02)
-- [ ] **Phase 4: Unit Converter** - Live bidirectional converter with expression-aware input across 6 unit categories
+- [x] **Phase 4: Unit Converter** - Live bidirectional converter with expression-aware input across 6 unit categories (completed 2026-04-04)
 - [ ] **Phase 5: Polish and APK** - Copy to clipboard, swap units, display edge cases, and verified installable APK build
 
 ## Phase Details
@@ -77,10 +77,10 @@ Plans:
   3. User can select any unit category (Length, Weight, Volume, Temperature, Area, Speed) and all units defined in requirements are available in both unit selectors
   4. Switching between categories and returning restores the previous value and unit pair for that category
   5. Length category defaults to mm and inches as the initial unit pair when first opened
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 04-01-PLAN.md — ConverterViewModel TDD (state model, bidirectional conversion, per-category state, activeField guard)
-- [ ] 04-02-PLAN.md — ConverterScreen UI (category tabs, input fields, unit dropdowns, ViewModel wiring)
+- [x] 04-02-PLAN.md — ConverterScreen UI (category tabs, input fields, unit dropdowns, ViewModel wiring)
 **UI hint**: yes
 
 ### Phase 5: Polish and APK
@@ -104,5 +104,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Domain Foundation | 2/3 | In Progress|  |
 | 2. App Shell | 2/2 | Complete   | 2026-04-02 |
 | 3. Calculator | 2/2 | Complete   | 2026-04-02 |
-| 4. Unit Converter | 1/2 | In Progress|  |
+| 4. Unit Converter | 2/2 | Complete   | 2026-04-04 |
 | 5. Polish and APK | 0/? | Not started | - |
