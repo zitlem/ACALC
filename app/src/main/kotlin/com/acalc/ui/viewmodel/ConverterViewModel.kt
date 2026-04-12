@@ -15,34 +15,25 @@ import kotlinx.coroutines.flow.StateFlow
 import java.math.BigDecimal
 import java.math.RoundingMode
 
-// ── State model ──
-
-sealed class UnitPair {
-    data class Length(val from: LengthUnit, val to: LengthUnit) : UnitPair()
-    data class Weight(val from: WeightUnit, val to: WeightUnit) : UnitPair()
-    data class Volume(val from: VolumeUnit, val to: VolumeUnit) : UnitPair()
-    data class Temperature(val from: TempUnit, val to: TempUnit) : UnitPair()
-    data class Area(val from: AreaUnit, val to: AreaUnit) : UnitPair()
-    data class Speed(val from: SpeedUnit, val to: SpeedUnit) : UnitPair()
-}
-
-data class CategoryState(
-    val topInput: String = "",
-    val bottomInput: String = "",
-    val units: UnitPair
+data class ConverterRow(
+    val unitIndex: Int,
+    val value: String
 )
-
-enum class ActiveField { TOP, BOTTOM }
 
 data class ConverterState(
     val selectedCategory: UnitCategory = UnitCategory.LENGTH,
-    val activeField: ActiveField = ActiveField.TOP,
-    val topInput: String = "",
-    val bottomInput: String = "",
-    val units: UnitPair = UnitPair.Length(LengthUnit.MM, LengthUnit.INCH)
+    val rows: List<ConverterRow> = defaultRowsFor(UnitCategory.LENGTH),
+    val activeRowIndex: Int = 0
 )
 
-// ── ViewModel ──
+private fun defaultRowsFor(category: UnitCategory): List<ConverterRow> = when (category) {
+    UnitCategory.LENGTH      -> listOf(ConverterRow(LengthUnit.MM.ordinal, ""), ConverterRow(LengthUnit.INCH.ordinal, ""))
+    UnitCategory.WEIGHT      -> listOf(ConverterRow(WeightUnit.KG.ordinal, ""), ConverterRow(WeightUnit.LB.ordinal, ""))
+    UnitCategory.VOLUME      -> listOf(ConverterRow(VolumeUnit.ML.ordinal, ""), ConverterRow(VolumeUnit.FL_OZ.ordinal, ""))
+    UnitCategory.TEMPERATURE -> listOf(ConverterRow(TempUnit.CELSIUS.ordinal, ""), ConverterRow(TempUnit.FAHRENHEIT.ordinal, ""))
+    UnitCategory.AREA        -> listOf(ConverterRow(AreaUnit.SQ_M.ordinal, ""), ConverterRow(AreaUnit.SQ_FT.ordinal, ""))
+    UnitCategory.SPEED       -> listOf(ConverterRow(SpeedUnit.KM_PER_H.ordinal, ""), ConverterRow(SpeedUnit.MPH.ordinal, ""))
+}
 
 class ConverterViewModel : ViewModel() {
 
@@ -52,193 +43,190 @@ class ConverterViewModel : ViewModel() {
     private val _state = MutableStateFlow(ConverterState())
     val state: StateFlow<ConverterState> = _state
 
-    // Per-category state map, pre-populated with defaults for all 6 categories
-    private val categoryStateMap: MutableMap<UnitCategory, CategoryState> =
-        UnitCategory.entries.associateWith { defaultStateFor(it) }.toMutableMap()
+    private val categoryStateMap: MutableMap<UnitCategory, ConverterState> = mutableMapOf()
 
-    // MARK: — Input handlers
-
-    fun onTopChanged(raw: String) {
-        _state.value = _state.value.copy(activeField = ActiveField.TOP, topInput = raw)
-        if (raw.isEmpty()) {
-            updateAndSave(_state.value.copy(bottomInput = ""))
-            return
-        }
-        // Trailing decimal/operator indicates user is still typing — treat as incomplete
-        if (raw.trimEnd().last() in ".,+-*/") return
-        val evaluated = evaluator.evaluate(raw) ?: return  // null = incomplete — leave bottomInput unchanged
-        val value = BigDecimal(evaluated.toString())
-        val converted = convertForCurrentCategory(value, fromTop = true)
-        updateAndSave(_state.value.copy(bottomInput = formatConverted(converted)))
-    }
-
-    fun onBottomChanged(raw: String) {
-        _state.value = _state.value.copy(activeField = ActiveField.BOTTOM, bottomInput = raw)
-        if (raw.isEmpty()) {
-            updateAndSave(_state.value.copy(topInput = ""))
-            return
-        }
-        // Trailing decimal/operator indicates user is still typing — treat as incomplete
-        if (raw.trimEnd().last() in ".,+-*/") return
-        val evaluated = evaluator.evaluate(raw) ?: return  // null = incomplete — leave topInput unchanged
-        val value = BigDecimal(evaluated.toString())
-        val converted = convertForCurrentCategory(value, fromTop = false)
-        updateAndSave(_state.value.copy(topInput = formatConverted(converted)))
-    }
+    // MARK: — Category switching
 
     fun onCategorySelected(category: UnitCategory) {
-        // Save current category state
-        val current = _state.value
-        categoryStateMap[current.selectedCategory] = CategoryState(
-            topInput = current.topInput,
-            bottomInput = current.bottomInput,
-            units = current.units
-        )
-        // Load new category state
-        val newCatState = categoryStateMap[category] ?: defaultStateFor(category)
-        _state.value = ConverterState(
+        categoryStateMap[_state.value.selectedCategory] = _state.value
+        _state.value = categoryStateMap[category] ?: ConverterState(
             selectedCategory = category,
-            activeField = ActiveField.TOP,
-            topInput = newCatState.topInput,
-            bottomInput = newCatState.bottomInput,
-            units = newCatState.units
+            rows = defaultRowsFor(category)
         )
     }
 
-    fun onTopUnitChanged(unitIndex: Int) {
-        val current = _state.value
-        val newUnits = rebuildUnitPairWithTopIndex(current.units, unitIndex)
-        val newState = current.copy(units = newUnits)
-        _state.value = newState
-        // Recompute based on active field
-        recomputeAfterUnitChange(newState)
+    // MARK: — Row activation
+
+    fun onRowActivated(index: Int) {
+        _state.value = _state.value.copy(activeRowIndex = index)
     }
 
-    fun onBottomUnitChanged(unitIndex: Int) {
-        val current = _state.value
-        val newUnits = rebuildUnitPairWithBottomIndex(current.units, unitIndex)
-        val newState = current.copy(units = newUnits)
-        _state.value = newState
-        recomputeAfterUnitChange(newState)
+    // MARK: — Numpad input
+
+    fun onNumpadKey(key: String) {
+        val state = _state.value
+        val activeIndex = state.activeRowIndex
+        val rows = state.rows.toMutableList()
+        val current = rows[activeIndex].value
+
+        val newValue = when (key) {
+            "⌫"  -> if (current.isEmpty()) "" else current.dropLast(1)
+            "C"   -> ""
+            "."   -> when {
+                "." in current -> current
+                current.isEmpty() -> "0."
+                else -> "$current."
+            }
+            "00"  -> if (current.isEmpty()) current else "$current" + "00"
+            else  -> if (current == "0") key else "$current$key"   // digit
+        }
+
+        rows[activeIndex] = rows[activeIndex].copy(value = newValue)
+
+        if (newValue.isEmpty()) {
+            val cleared = rows.mapIndexed { i, r -> if (i == activeIndex) r else r.copy(value = "") }
+            _state.value = state.copy(rows = cleared)
+            return
+        }
+
+        val evaluated = evaluator.evaluate(newValue) ?: run {
+            _state.value = state.copy(rows = rows)
+            return
+        }
+
+        recomputeFrom(state, rows, activeIndex, BigDecimal(evaluated.toString()))
+    }
+
+    // MARK: — Swap top two rows (unit + value together, values stay consistent)
+
+    fun onSwap() {
+        val state = _state.value
+        if (state.rows.size < 2) return
+        val rows = state.rows.toMutableList()
+        val tmp = rows[0]; rows[0] = rows[1]; rows[1] = tmp
+        val newActive = when (state.activeRowIndex) {
+            0    -> 1
+            1    -> 0
+            else -> state.activeRowIndex
+        }
+        _state.value = state.copy(rows = rows, activeRowIndex = newActive)
+    }
+
+    // MARK: — Unit selection
+
+    fun onUnitChanged(rowIndex: Int, unitIndex: Int) {
+        val state = _state.value
+        val rows = state.rows.toMutableList()
+        rows[rowIndex] = rows[rowIndex].copy(unitIndex = unitIndex)
+        _state.value = state.copy(rows = rows)
+
+        val activeIndex = state.activeRowIndex
+        val activeValue = rows[activeIndex].value
+        if (activeValue.isEmpty()) return
+        val evaluated = evaluator.evaluate(activeValue) ?: return
+        recomputeFrom(_state.value, rows, activeIndex, BigDecimal(evaluated.toString()))
+    }
+
+    // MARK: — Row management
+
+    fun onAddRow() {
+        val state = _state.value
+        val newRow = ConverterRow(unitIndex = 0, value = "")
+        val rows = (state.rows + newRow).toMutableList()
+        _state.value = state.copy(rows = rows)
+
+        val activeIndex = state.activeRowIndex
+        val activeValue = state.rows[activeIndex].value
+        if (activeValue.isEmpty()) return
+        val evaluated = evaluator.evaluate(activeValue) ?: return
+        recomputeFrom(_state.value, rows, activeIndex, BigDecimal(evaluated.toString()))
+    }
+
+    fun onExprCalcCommit(expression: String) {
+        val sanitized = expression
+            .replace("×", "*")
+            .replace("÷", "/")
+            .replace("x", "*")
+        val evaluated = evaluator.evaluate(sanitized) ?: return
+        val state = _state.value
+        val activeIndex = state.activeRowIndex
+        val rows = state.rows.toMutableList()
+        val displayValue = formatConverted(BigDecimal(evaluated.toString()))
+        rows[activeIndex] = rows[activeIndex].copy(value = displayValue)
+        recomputeFrom(state, rows, activeIndex, BigDecimal(evaluated.toString()))
+    }
+
+    fun onRemoveRow(rowIndex: Int) {
+        val state = _state.value
+        if (state.rows.size <= 2) return
+        val newRows = state.rows.toMutableList()
+        newRows.removeAt(rowIndex)
+        val newActive = when {
+            state.activeRowIndex == rowIndex -> 0
+            state.activeRowIndex > rowIndex  -> state.activeRowIndex - 1
+            else                             -> state.activeRowIndex
+        }
+        _state.value = state.copy(rows = newRows, activeRowIndex = newActive)
     }
 
     // MARK: — UI helpers
 
-    fun getUnitsForCategory(category: UnitCategory): List<Pair<String, String>> {
-        return when (category) {
-            UnitCategory.LENGTH      -> LengthUnit.entries.map { it.name to it.displayName }
-            UnitCategory.WEIGHT      -> WeightUnit.entries.map { it.name to it.displayName }
-            UnitCategory.VOLUME      -> VolumeUnit.entries.map { it.name to it.displayName }
-            UnitCategory.TEMPERATURE -> TempUnit.entries.map { it.name to it.displayName }
-            UnitCategory.AREA        -> AreaUnit.entries.map { it.name to it.displayName }
-            UnitCategory.SPEED       -> SpeedUnit.entries.map { it.name to it.displayName }
-        }
+    fun getUnitsForCategory(category: UnitCategory): List<Pair<String, String>> = when (category) {
+        UnitCategory.LENGTH      -> LengthUnit.entries.map { it.name to it.displayName }
+        UnitCategory.WEIGHT      -> WeightUnit.entries.map { it.name to it.displayName }
+        UnitCategory.VOLUME      -> VolumeUnit.entries.map { it.name to it.displayName }
+        UnitCategory.TEMPERATURE -> TempUnit.entries.map { it.name to it.displayName }
+        UnitCategory.AREA        -> AreaUnit.entries.map { it.name to it.displayName }
+        UnitCategory.SPEED       -> SpeedUnit.entries.map { it.name to it.displayName }
     }
 
-    fun getTopUnitDisplayName(): String = displayNameOf(_state.value.units, fromTop = true)
-
-    fun getBottomUnitDisplayName(): String = displayNameOf(_state.value.units, fromTop = false)
+    fun getConversionHint(state: ConverterState): String {
+        if (state.rows.size < 2) return ""
+        val units = getUnitsForCategory(state.selectedCategory)
+        val fromName = units.getOrNull(state.rows[0].unitIndex)?.second ?: return ""
+        val toName   = units.getOrNull(state.rows[1].unitIndex)?.second ?: return ""
+        val rate = runCatching {
+            convertBetween(BigDecimal.ONE, state.rows[0].unitIndex, state.rows[1].unitIndex, state.selectedCategory)
+                .setScale(10, RoundingMode.HALF_UP)
+                .stripTrailingZeros()
+                .toPlainString()
+        }.getOrNull() ?: return ""
+        return "* 1 $fromName = $rate $toName"
+    }
 
     // MARK: — Private helpers
 
-    private fun updateAndSave(newState: ConverterState) {
-        _state.value = newState
-        // Keep categoryStateMap in sync so switches preserve current inputs
-        categoryStateMap[newState.selectedCategory] = CategoryState(
-            topInput = newState.topInput,
-            bottomInput = newState.bottomInput,
-            units = newState.units
-        )
-    }
-
-    private fun recomputeAfterUnitChange(state: ConverterState) {
-        when (state.activeField) {
-            ActiveField.TOP -> {
-                val raw = state.topInput
-                if (raw.isEmpty()) return
-                val evaluated = evaluator.evaluate(raw) ?: return
-                val value = BigDecimal(evaluated.toString())
-                val converted = convertForCurrentCategory(value, fromTop = true)
-                updateAndSave(state.copy(bottomInput = formatConverted(converted)))
-            }
-            ActiveField.BOTTOM -> {
-                val raw = state.bottomInput
-                if (raw.isEmpty()) return
-                val evaluated = evaluator.evaluate(raw) ?: return
-                val value = BigDecimal(evaluated.toString())
-                val converted = convertForCurrentCategory(value, fromTop = false)
-                updateAndSave(state.copy(topInput = formatConverted(converted)))
+    private fun recomputeFrom(
+        state: ConverterState,
+        rows: MutableList<ConverterRow>,
+        sourceIndex: Int,
+        value: BigDecimal
+    ) {
+        val sourceUnitIndex = rows[sourceIndex].unitIndex
+        val finalRows = rows.mapIndexed { i, r ->
+            if (i == sourceIndex) r
+            else {
+                val converted = convertBetween(value, sourceUnitIndex, r.unitIndex, state.selectedCategory)
+                r.copy(value = formatConverted(converted))
             }
         }
+        _state.value = state.copy(rows = finalRows)
     }
 
-    private fun convertForCurrentCategory(value: BigDecimal, fromTop: Boolean): BigDecimal {
-        return when (val units = _state.value.units) {
-            is UnitPair.Length ->
-                if (fromTop) engine.convert(value, units.from, units.to)
-                else engine.convert(value, units.to, units.from)
-            is UnitPair.Weight ->
-                if (fromTop) engine.convert(value, units.from, units.to)
-                else engine.convert(value, units.to, units.from)
-            is UnitPair.Volume ->
-                if (fromTop) engine.convert(value, units.from, units.to)
-                else engine.convert(value, units.to, units.from)
-            is UnitPair.Temperature ->
-                if (fromTop) engine.convert(value, units.from, units.to)
-                else engine.convert(value, units.to, units.from)
-            is UnitPair.Area ->
-                if (fromTop) engine.convert(value, units.from, units.to)
-                else engine.convert(value, units.to, units.from)
-            is UnitPair.Speed ->
-                if (fromTop) engine.convert(value, units.from, units.to)
-                else engine.convert(value, units.to, units.from)
-        }
+    private fun convertBetween(
+        value: BigDecimal,
+        fromIndex: Int,
+        toIndex: Int,
+        category: UnitCategory
+    ): BigDecimal = when (category) {
+        UnitCategory.LENGTH      -> engine.convert(value, LengthUnit.entries[fromIndex], LengthUnit.entries[toIndex])
+        UnitCategory.WEIGHT      -> engine.convert(value, WeightUnit.entries[fromIndex], WeightUnit.entries[toIndex])
+        UnitCategory.VOLUME      -> engine.convert(value, VolumeUnit.entries[fromIndex], VolumeUnit.entries[toIndex])
+        UnitCategory.TEMPERATURE -> engine.convert(value, TempUnit.entries[fromIndex], TempUnit.entries[toIndex])
+        UnitCategory.AREA        -> engine.convert(value, AreaUnit.entries[fromIndex], AreaUnit.entries[toIndex])
+        UnitCategory.SPEED       -> engine.convert(value, SpeedUnit.entries[fromIndex], SpeedUnit.entries[toIndex])
     }
 
     private fun formatConverted(value: BigDecimal): String =
         value.setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
-
-    private fun rebuildUnitPairWithTopIndex(current: UnitPair, index: Int): UnitPair {
-        return when (current) {
-            is UnitPair.Length      -> current.copy(from = LengthUnit.entries[index])
-            is UnitPair.Weight      -> current.copy(from = WeightUnit.entries[index])
-            is UnitPair.Volume      -> current.copy(from = VolumeUnit.entries[index])
-            is UnitPair.Temperature -> current.copy(from = TempUnit.entries[index])
-            is UnitPair.Area        -> current.copy(from = AreaUnit.entries[index])
-            is UnitPair.Speed       -> current.copy(from = SpeedUnit.entries[index])
-        }
-    }
-
-    private fun rebuildUnitPairWithBottomIndex(current: UnitPair, index: Int): UnitPair {
-        return when (current) {
-            is UnitPair.Length      -> current.copy(to = LengthUnit.entries[index])
-            is UnitPair.Weight      -> current.copy(to = WeightUnit.entries[index])
-            is UnitPair.Volume      -> current.copy(to = VolumeUnit.entries[index])
-            is UnitPair.Temperature -> current.copy(to = TempUnit.entries[index])
-            is UnitPair.Area        -> current.copy(to = AreaUnit.entries[index])
-            is UnitPair.Speed       -> current.copy(to = SpeedUnit.entries[index])
-        }
-    }
-
-    private fun displayNameOf(units: UnitPair, fromTop: Boolean): String {
-        return when (units) {
-            is UnitPair.Length      -> if (fromTop) units.from.displayName else units.to.displayName
-            is UnitPair.Weight      -> if (fromTop) units.from.displayName else units.to.displayName
-            is UnitPair.Volume      -> if (fromTop) units.from.displayName else units.to.displayName
-            is UnitPair.Temperature -> if (fromTop) units.from.displayName else units.to.displayName
-            is UnitPair.Area        -> if (fromTop) units.from.displayName else units.to.displayName
-            is UnitPair.Speed       -> if (fromTop) units.from.displayName else units.to.displayName
-        }
-    }
-
-    companion object {
-        fun defaultStateFor(category: UnitCategory): CategoryState = when (category) {
-            UnitCategory.LENGTH      -> CategoryState(units = UnitPair.Length(LengthUnit.MM, LengthUnit.INCH))
-            UnitCategory.WEIGHT      -> CategoryState(units = UnitPair.Weight(WeightUnit.KG, WeightUnit.LB))
-            UnitCategory.VOLUME      -> CategoryState(units = UnitPair.Volume(VolumeUnit.ML, VolumeUnit.FL_OZ))
-            UnitCategory.TEMPERATURE -> CategoryState(units = UnitPair.Temperature(TempUnit.CELSIUS, TempUnit.FAHRENHEIT))
-            UnitCategory.AREA        -> CategoryState(units = UnitPair.Area(AreaUnit.SQ_M, AreaUnit.SQ_FT))
-            UnitCategory.SPEED       -> CategoryState(units = UnitPair.Speed(SpeedUnit.KM_PER_H, SpeedUnit.MPH))
-        }
-    }
 }
