@@ -3,12 +3,12 @@ package com.acalc.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,17 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backspace
-import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -38,7 +33,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,12 +51,20 @@ import com.acalc.domain.UnitCategory
 import com.acalc.ui.viewmodel.ConverterViewModel
 
 private val CATEGORY_LABELS = mapOf(
+    UnitCategory.TRIANGLE    to "Triangle",
     UnitCategory.LENGTH      to "Length",
     UnitCategory.WEIGHT      to "Weight",
     UnitCategory.VOLUME      to "Volume",
     UnitCategory.TEMPERATURE to "Temp",
     UnitCategory.AREA        to "Area",
-    UnitCategory.SPEED       to "Speed"
+    UnitCategory.SPEED       to "Speed",
+    UnitCategory.TIME        to "Time",
+    UnitCategory.FORCE       to "Force",
+    UnitCategory.PRESSURE    to "Pressure",
+    UnitCategory.ENERGY      to "Energy",
+    UnitCategory.POWER       to "Power",
+    UnitCategory.ANGLE       to "Angle",
+    UnitCategory.DATA        to "Data"
 )
 
 @Composable
@@ -71,7 +73,6 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
     val state by vm.state.collectAsStateWithLifecycle()
     val unitOptions = vm.getUnitsForCategory(state.selectedCategory)
     var unitPickerRowIndex by remember { mutableStateOf<Int?>(null) }
-    var showExprCalc by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()) {
 
@@ -88,58 +89,47 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        // Rows + hint + add-unit button
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-        ) {
+        if (state.selectedCategory == UnitCategory.TRIANGLE) {
+            TriangleCalculatorContent(modifier = Modifier.weight(1f).fillMaxWidth())
+        } else {
+            // Rows — each gets equal vertical space, all always visible
             state.rows.forEachIndexed { index, row ->
                 ConverterRowItem(
                     unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
                     value = row.value,
                     isActive = index == state.activeRowIndex,
                     onTap = { vm.onRowActivated(index) },
-                    onUnitTap = { unitPickerRowIndex = index }
+                    onUnitTap = { unitPickerRowIndex = index },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
                 )
                 HorizontalDivider()
             }
 
             // Conversion hint
             val hint = vm.getConversionHint(state)
-            Text(
-                text = hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.End,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-            )
-
-            // Add unit row button
-            TextButton(
-                onClick = vm::onAddRow,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("Add unit")
+            if (hint.isNotEmpty()) {
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                )
             }
+
+            HorizontalDivider()
+
+            // Calculator-style numpad
+            ConverterNumpad(
+                onKey = vm::onNumpadKey,
+                onSwap = vm::onSwap,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
-
-        HorizontalDivider()
-
-        // Custom numpad
-        ConverterNumpad(
-            onKey = vm::onNumpadKey,
-            onSwap = vm::onSwap,
-            onExprCalc = { showExprCalc = true },
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 
     // Unit picker bottom sheet
@@ -152,20 +142,6 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
                 unitPickerRowIndex = null
             },
             onDismiss = { unitPickerRowIndex = null }
-        )
-    }
-
-    // Expression calculator dialog
-    if (showExprCalc) {
-        val activeRow = state.rows.getOrNull(state.activeRowIndex)
-        val activeUnitName = activeRow?.let {
-            unitOptions.getOrNull(it.unitIndex)?.second
-        } ?: ""
-        ExpressionCalcDialog(
-            unitName = activeUnitName,
-            initialValue = activeRow?.value ?: "",
-            onCommit = { expr -> vm.onExprCalcCommit(expr); showExprCalc = false },
-            onDismiss = { showExprCalc = false }
         )
     }
 }
@@ -184,17 +160,16 @@ private fun ConverterRowItem(
 
     Row(
         modifier = modifier
-            .fillMaxWidth()
             .background(bgColor)
             .clickable { onTap() }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Unit selector button
         OutlinedButton(
             onClick = onUnitTap,
-            modifier = Modifier.width(140.dp),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.width(110.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             shape = RoundedCornerShape(6.dp)
         ) {
             Text(
@@ -205,23 +180,24 @@ private fun ConverterRowItem(
             )
         }
 
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
 
-        // Value display
+        // Value display — fills remaining width and all available row height
         Box(
             modifier = Modifier
                 .weight(1f)
+                .fillMaxHeight()
                 .border(
                     width = if (isActive) 2.dp else 1.dp,
                     color = if (isActive) activeColor else MaterialTheme.colorScheme.outlineVariant,
                     shape = RoundedCornerShape(6.dp)
                 )
-                .padding(horizontal = 10.dp, vertical = 12.dp),
+                .padding(horizontal = 10.dp),
             contentAlignment = Alignment.CenterEnd
         ) {
             Text(
                 text = if (value.isEmpty() && isActive) "0" else value,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.End,
                 color = if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.onSurface,
@@ -237,47 +213,48 @@ private fun ConverterRowItem(
 private fun ConverterNumpad(
     onKey: (String) -> Unit,
     onSwap: () -> Unit,
-    onExprCalc: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(10.dp)
 
     Column(modifier = modifier.padding(4.dp)) {
-        // Row 1: 7  8  9  ⌫
+        // Row 1: C  ⌫  ↕  ÷
+        Row(Modifier.fillMaxWidth()) {
+            NumpadAction("C",  shape, { onKey("C") },  Modifier.weight(1f))
+            NumpadAction(null, shape, { onKey("⌫") }, Modifier.weight(1f)) {
+                Icon(Icons.Default.Backspace, contentDescription = "Backspace", modifier = Modifier.size(20.dp))
+            }
+            NumpadAction(null, shape, onSwap, Modifier.weight(1f)) {
+                Icon(Icons.Default.SwapVert, contentDescription = "Swap", modifier = Modifier.size(20.dp))
+            }
+            NumpadOperator("÷", shape, { onKey("÷") }, Modifier.weight(1f))
+        }
+        // Row 2: 7  8  9  ×
         Row(Modifier.fillMaxWidth()) {
             NumpadDigit("7", shape, { onKey("7") }, Modifier.weight(1f))
             NumpadDigit("8", shape, { onKey("8") }, Modifier.weight(1f))
             NumpadDigit("9", shape, { onKey("9") }, Modifier.weight(1f))
-            NumpadSpecial(shape, onClick = { onKey("⌫") }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.Backspace, contentDescription = "Backspace", modifier = Modifier.size(22.dp))
-            }
+            NumpadOperator("×", shape, { onKey("×") }, Modifier.weight(1f))
         }
-        // Row 2: 4  5  6  ↕
+        // Row 3: 4  5  6  -
         Row(Modifier.fillMaxWidth()) {
             NumpadDigit("4", shape, { onKey("4") }, Modifier.weight(1f))
             NumpadDigit("5", shape, { onKey("5") }, Modifier.weight(1f))
             NumpadDigit("6", shape, { onKey("6") }, Modifier.weight(1f))
-            NumpadSpecial(shape, onClick = onSwap, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.SwapVert, contentDescription = "Swap", modifier = Modifier.size(22.dp))
-            }
+            NumpadOperator("-", shape, { onKey("-") }, Modifier.weight(1f))
         }
-        // Row 3: 1  2  3  expression-calc
+        // Row 4: 1  2  3  +
         Row(Modifier.fillMaxWidth()) {
             NumpadDigit("1", shape, { onKey("1") }, Modifier.weight(1f))
             NumpadDigit("2", shape, { onKey("2") }, Modifier.weight(1f))
             NumpadDigit("3", shape, { onKey("3") }, Modifier.weight(1f))
-            NumpadSpecial(shape, onClick = onExprCalc, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.Calculate, contentDescription = "Expression calculator", modifier = Modifier.size(22.dp))
-            }
+            NumpadOperator("+", shape, { onKey("+") }, Modifier.weight(1f))
         }
-        // Row 4: 0  00  .  C
+        // Row 5: ±  0  .
         Row(Modifier.fillMaxWidth()) {
-            NumpadDigit("0",  shape, { onKey("0")  }, Modifier.weight(1f))
-            NumpadDigit("00", shape, { onKey("00") }, Modifier.weight(1f))
-            NumpadDigit(".",  shape, { onKey(".")  }, Modifier.weight(1f))
-            NumpadSpecial(shape, onClick = { onKey("C") }, modifier = Modifier.weight(1f)) {
-                Text("C", style = MaterialTheme.typography.titleLarge)
-            }
+            NumpadAction("±", shape, { onKey("±") }, Modifier.weight(1f))
+            NumpadDigit("0", shape, { onKey("0") }, Modifier.weight(2f))
+            NumpadDigit(".", shape, { onKey(".") }, Modifier.weight(1f))
         }
     }
 }
@@ -294,157 +271,46 @@ private fun NumpadDigit(
         shape = shape,
         modifier = modifier
             .padding(3.dp)
-            .height(56.dp)
+            .height(52.dp)
     ) {
         Text(label, style = MaterialTheme.typography.titleLarge)
     }
 }
 
 @Composable
-private fun NumpadSpecial(
+private fun NumpadOperator(
+    label: String,
     shape: RoundedCornerShape,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
+    modifier: Modifier = Modifier
 ) {
     Button(
         onClick = onClick,
         shape = shape,
         modifier = modifier
             .padding(3.dp)
-            .height(56.dp)
+            .height(52.dp)
     ) {
-        content()
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ExpressionCalcDialog(
-    unitName: String,
-    initialValue: String,
-    onCommit: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var expression by remember { mutableStateOf(initialValue) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Title: unit name
-            Text(unitName, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-
-            // Expression display area
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(8.dp)
-                    )
-                    .padding(horizontal = 16.dp, vertical = 20.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Text(
-                    text = expression.ifEmpty { "0" },
-                    style = MaterialTheme.typography.headlineMedium,
-                    textAlign = TextAlign.End,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Full calculator numpad
-            val btnShape = RoundedCornerShape(10.dp)
-
-            val onKey: (String) -> Unit = { key ->
-                when (key) {
-                    "C" -> expression = ""
-                    "DEL" -> expression = if (expression.isNotEmpty()) expression.dropLast(1) else ""
-                    "±" -> expression = if (expression.startsWith("-")) expression.drop(1) else "-$expression"
-                    "=" -> {
-                        onCommit(expression)
-                        onDismiss()
-                    }
-                    else -> expression = expression + key
-                }
-            }
-
-            // Row 1: C  ⌫  %  ÷
-            Row(Modifier.fillMaxWidth()) {
-                ExprCalcBtn("C", btnShape, { onKey("C") }, Modifier.weight(1f), isOperator = true)
-                ExprCalcBtn(null, btnShape, { onKey("DEL") }, Modifier.weight(1f), isOperator = true) {
-                    Icon(Icons.Default.Backspace, contentDescription = "Delete", modifier = Modifier.size(20.dp))
-                }
-                ExprCalcBtn("%", btnShape, { onKey("%") }, Modifier.weight(1f), isOperator = true)
-                ExprCalcBtn("\u00F7", btnShape, { onKey("\u00F7") }, Modifier.weight(1f), isOperator = true)
-            }
-            // Row 2: 7  8  9  ×
-            Row(Modifier.fillMaxWidth()) {
-                ExprCalcBtn("7", btnShape, { onKey("7") }, Modifier.weight(1f))
-                ExprCalcBtn("8", btnShape, { onKey("8") }, Modifier.weight(1f))
-                ExprCalcBtn("9", btnShape, { onKey("9") }, Modifier.weight(1f))
-                ExprCalcBtn("\u00D7", btnShape, { onKey("\u00D7") }, Modifier.weight(1f), isOperator = true)
-            }
-            // Row 3: 4  5  6  −
-            Row(Modifier.fillMaxWidth()) {
-                ExprCalcBtn("4", btnShape, { onKey("4") }, Modifier.weight(1f))
-                ExprCalcBtn("5", btnShape, { onKey("5") }, Modifier.weight(1f))
-                ExprCalcBtn("6", btnShape, { onKey("6") }, Modifier.weight(1f))
-                ExprCalcBtn("-", btnShape, { onKey("-") }, Modifier.weight(1f), isOperator = true)
-            }
-            // Row 4: 1  2  3  +
-            Row(Modifier.fillMaxWidth()) {
-                ExprCalcBtn("1", btnShape, { onKey("1") }, Modifier.weight(1f))
-                ExprCalcBtn("2", btnShape, { onKey("2") }, Modifier.weight(1f))
-                ExprCalcBtn("3", btnShape, { onKey("3") }, Modifier.weight(1f))
-                ExprCalcBtn("+", btnShape, { onKey("+") }, Modifier.weight(1f), isOperator = true)
-            }
-            // Row 5: ±  0  .  =
-            Row(Modifier.fillMaxWidth()) {
-                ExprCalcBtn("±", btnShape, { onKey("±") }, Modifier.weight(1f), isOperator = true)
-                ExprCalcBtn("0", btnShape, { onKey("0") }, Modifier.weight(1.5f))
-                ExprCalcBtn(".", btnShape, { onKey(".") }, Modifier.weight(1f))
-                ExprCalcBtn("=", btnShape, { onKey("=") }, Modifier.weight(1f), isOperator = true)
-            }
-
-            Spacer(Modifier.height(16.dp))
-        }
+        Text(label, style = MaterialTheme.typography.titleLarge)
     }
 }
 
 @Composable
-private fun ExprCalcBtn(
+private fun NumpadAction(
     label: String?,
     shape: RoundedCornerShape,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isOperator: Boolean = false,
     content: (@Composable () -> Unit)? = null
 ) {
-    if (isOperator) {
-        Button(
-            onClick = onClick,
-            shape = shape,
-            modifier = modifier.padding(3.dp).height(52.dp)
-        ) {
-            content?.invoke() ?: Text(label ?: "", style = MaterialTheme.typography.titleMedium)
-        }
-    } else {
-        FilledTonalButton(
-            onClick = onClick,
-            shape = shape,
-            modifier = modifier.padding(3.dp).height(52.dp)
-        ) {
-            content?.invoke() ?: Text(label ?: "", style = MaterialTheme.typography.titleMedium)
-        }
+    OutlinedButton(
+        onClick = onClick,
+        shape = shape,
+        modifier = modifier
+            .padding(3.dp)
+            .height(52.dp)
+    ) {
+        content?.invoke() ?: Text(label ?: "", style = MaterialTheme.typography.titleLarge)
     }
 }
 

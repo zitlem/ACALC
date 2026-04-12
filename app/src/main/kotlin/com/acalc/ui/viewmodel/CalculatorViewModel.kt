@@ -1,10 +1,14 @@
 package com.acalc.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import com.acalc.data.CalculationEntity
 import com.acalc.domain.ExpressionEvaluator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.text.NumberFormat
 import kotlin.math.floor
 
@@ -14,14 +18,15 @@ data class CalculatorState(
     val isError: Boolean = false
 )
 
-class CalculatorViewModel : ViewModel() {
+class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
 
+    private val prefs = app.getSharedPreferences("acalc_prefs", Context.MODE_PRIVATE)
     private val evaluator = ExpressionEvaluator()
 
     private val _state = MutableStateFlow(CalculatorState())
     val state: StateFlow<CalculatorState> = _state
 
-    private val _history = MutableStateFlow<List<CalculationEntity>>(emptyList())
+    private val _history = MutableStateFlow(loadHistory())
     val history: StateFlow<List<CalculationEntity>> = _history
 
     // Raw expression string (no formatting). Kept in sync with _state.value.expression.
@@ -106,6 +111,38 @@ class CalculatorViewModel : ViewModel() {
         }
     }
 
+    fun onAdvanced(key: String) {
+        if (resultShown) {
+            // Function calls, √, (, constants (π φ e) → start fresh; ^ continues from result
+            val startsFresh = key == "√" || key == "(" || key.first().isLetter() ||
+                              key == "π" || key == "φ"
+            if (startsFresh) {
+                expression = key
+                resultShown = false
+                _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+                return
+            }
+            resultShown = false
+        }
+        expression += key
+        _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+    }
+
+    // Smart ( ) — adds ( if parens are balanced, ) if there's an unclosed one
+    fun onParen() {
+        if (resultShown) {
+            expression = "("
+            resultShown = false
+            _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+            return
+        }
+        val open = expression.count { it == '(' }
+        val close = expression.count { it == ')' }
+        val toAdd = if (open > close) ")" else "("
+        expression += toAdd
+        _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+    }
+
     fun onEquals() {
         if (expression.isEmpty()) return
         val originalExpression = expression
@@ -124,12 +161,20 @@ class CalculatorViewModel : ViewModel() {
 
     fun clearHistory() {
         _history.value = emptyList()
+        prefs.edit().remove("calculator_history").apply()
     }
 
     // MARK: — Helpers
 
     private fun saveHistory(expr: String, result: String) {
-        _history.value = listOf(CalculationEntity(expression = expr, result = result)) + _history.value
+        val updated = listOf(CalculationEntity(expression = expr, result = result)) + _history.value
+        _history.value = updated
+        prefs.edit().putString("calculator_history", Json.encodeToString(updated)).apply()
+    }
+
+    private fun loadHistory(): List<CalculationEntity> {
+        val json = prefs.getString("calculator_history", null) ?: return emptyList()
+        return try { Json.decodeFromString(json) } catch (_: Exception) { emptyList() }
     }
 
     private fun currentToken(): String {
