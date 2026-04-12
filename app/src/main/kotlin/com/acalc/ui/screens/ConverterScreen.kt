@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,8 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -103,6 +105,7 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .heightIn(max = 80.dp)
                 )
                 HorizontalDivider()
             }
@@ -126,7 +129,8 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
             // Calculator-style numpad
             ConverterNumpad(
                 onKey = vm::onNumpadKey,
-                onSwap = vm::onSwap,
+                onEnter = vm::onEnter,
+                onFocusNext = vm::onFocusNextRow,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -212,21 +216,20 @@ private fun ConverterRowItem(
 @Composable
 private fun ConverterNumpad(
     onKey: (String) -> Unit,
-    onSwap: () -> Unit,
+    onEnter: () -> Unit,
+    onFocusNext: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(10.dp)
 
     Column(modifier = modifier.padding(4.dp)) {
-        // Row 1: C  ⌫  ↕  ÷
+        // Row 1: C  ⌫  ±  ÷
         Row(Modifier.fillMaxWidth()) {
             NumpadAction("C",  shape, { onKey("C") },  Modifier.weight(1f))
             NumpadAction(null, shape, { onKey("⌫") }, Modifier.weight(1f)) {
                 Icon(Icons.Default.Backspace, contentDescription = "Backspace", modifier = Modifier.size(20.dp))
             }
-            NumpadAction(null, shape, onSwap, Modifier.weight(1f)) {
-                Icon(Icons.Default.SwapVert, contentDescription = "Swap", modifier = Modifier.size(20.dp))
-            }
+            NumpadAction("±", shape, { onKey("±") }, Modifier.weight(1f))
             NumpadOperator("÷", shape, { onKey("÷") }, Modifier.weight(1f))
         }
         // Row 2: 7  8  9  ×
@@ -250,11 +253,14 @@ private fun ConverterNumpad(
             NumpadDigit("3", shape, { onKey("3") }, Modifier.weight(1f))
             NumpadOperator("+", shape, { onKey("+") }, Modifier.weight(1f))
         }
-        // Row 5: ±  0  .
+        // Row 5: ↓  0  .  =
         Row(Modifier.fillMaxWidth()) {
-            NumpadAction("±", shape, { onKey("±") }, Modifier.weight(1f))
-            NumpadDigit("0", shape, { onKey("0") }, Modifier.weight(2f))
+            NumpadAction(null, shape, onFocusNext, Modifier.weight(1f)) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Focus next row", modifier = Modifier.size(20.dp))
+            }
+            NumpadDigit("0", shape, { onKey("0") }, Modifier.weight(1f))
             NumpadDigit(".", shape, { onKey(".") }, Modifier.weight(1f))
+            NumpadEquals(shape, onEnter, Modifier.weight(1f))
         }
     }
 }
@@ -311,6 +317,27 @@ private fun NumpadAction(
             .height(52.dp)
     ) {
         content?.invoke() ?: Text(label ?: "", style = MaterialTheme.typography.titleLarge)
+    }
+}
+
+@Composable
+private fun NumpadEquals(
+    shape: RoundedCornerShape,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        shape = shape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.tertiary,
+            contentColor = MaterialTheme.colorScheme.onTertiary
+        ),
+        modifier = modifier
+            .padding(3.dp)
+            .height(52.dp)
+    ) {
+        Text("=", style = MaterialTheme.typography.titleLarge)
     }
 }
 

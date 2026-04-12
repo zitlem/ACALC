@@ -43,7 +43,8 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
             resultShown = false
         }
         expression += digit
-        _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+        val live = tryComputeFormatted()
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
     }
 
     fun onOperator(op: String) {
@@ -77,10 +78,14 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
             expression += "."
         }
         resultShown = false
-        _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+        val live = tryComputeFormatted()
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
     }
 
     fun onClear() {
+        if (expression.isNotEmpty() && !resultShown) {
+            tryComputeFormatted()?.let { saveHistory(expression, it) }
+        }
         expression = ""
         resultShown = false
         _state.value = CalculatorState()
@@ -90,7 +95,8 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
         if (expression.isEmpty()) return
         expression = expression.dropLast(1)
         resultShown = false
-        _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+        val live = tryComputeFormatted()
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
     }
 
     fun onPercent() {
@@ -119,13 +125,15 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
             if (startsFresh) {
                 expression = key
                 resultShown = false
-                _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+                val live = tryComputeFormatted()
+                _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
                 return
             }
             resultShown = false
         }
         expression += key
-        _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+        val live = tryComputeFormatted()
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
     }
 
     // Smart ( ) — adds ( if parens are balanced, ) if there's an unclosed one
@@ -140,7 +148,14 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
         val close = expression.count { it == ')' }
         val toAdd = if (open > close) ")" else "("
         expression += toAdd
-        _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+        val live = tryComputeFormatted()
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
+    }
+
+    fun onTabLeave() {
+        if (expression.isNotEmpty() && !resultShown) {
+            tryComputeFormatted()?.let { saveHistory(expression, it) }
+        }
     }
 
     fun onEquals() {
@@ -180,6 +195,11 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
     private fun currentToken(): String {
         val lastOpIndex = expression.indexOfLast { it in "+-x/" }
         return if (lastOpIndex == -1) expression else expression.substring(lastOpIndex + 1)
+    }
+
+    private fun tryComputeFormatted(): String? {
+        val result = compute() ?: return null
+        return formatResult(result)
     }
 
     private fun compute(): Double? {

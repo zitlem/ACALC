@@ -221,6 +221,26 @@ class ConverterViewModel : ViewModel() {
         recomputeFrom(_state.value, rows, activeIndex, BigDecimal(evaluated.toString()))
     }
 
+    fun onEnter() {
+        val state = _state.value
+        val activeValue = state.rows.getOrNull(state.activeRowIndex)?.value ?: return
+        onExprCalcCommit(activeValue)
+    }
+
+    fun onFocusPrevRow() {
+        val s = _state.value
+        if (s.rows.isEmpty()) return
+        val prev = (s.activeRowIndex - 1 + s.rows.size) % s.rows.size
+        _state.value = s.copy(activeRowIndex = prev)
+    }
+
+    fun onFocusNextRow() {
+        val s = _state.value
+        if (s.rows.isEmpty()) return
+        val next = (s.activeRowIndex + 1) % s.rows.size
+        _state.value = s.copy(activeRowIndex = next)
+    }
+
     fun onExprCalcCommit(expression: String) {
         val sanitized = expression
             .replace("×", "*")

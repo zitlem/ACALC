@@ -14,12 +14,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.acalc.ui.screens.CalculatorScreen
 import com.acalc.ui.screens.ConverterScreen
+import com.acalc.ui.viewmodel.CalculatorViewModel
 import kotlinx.serialization.Serializable
 
 sealed interface TabRoute : NavKey
@@ -35,6 +37,7 @@ data object ConverterRoute : TabRoute
 fun AppShell() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("acalc_prefs", Context.MODE_PRIVATE) }
+    val calcVm = viewModel<CalculatorViewModel>()
     val startRoute: TabRoute = remember {
         if (prefs.getBoolean("last_tab_converter", false)) ConverterRoute else CalculatorRoute
     }
@@ -66,6 +69,7 @@ fun AppShell() {
                     selected = selectedTabIndex == 1,
                     onClick = {
                         if (currentRoute !is ConverterRoute) {
+                            calcVm.onTabLeave()
                             prefs.edit().putBoolean("last_tab_converter", true).apply()
                             backStack.clear()
                             backStack.add(ConverterRoute)
