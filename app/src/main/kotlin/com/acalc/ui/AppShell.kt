@@ -1,7 +1,10 @@
 package com.acalc.ui
 
 import android.content.Context
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
@@ -41,8 +44,13 @@ fun AppShell() {
     val selectedTabIndex = if (currentRoute is ConverterRoute) 1 else 0
 
     Scaffold(
+        // Prevent Scaffold from double-counting the status bar — PrimaryTabRow handles it below
+        contentWindowInsets = WindowInsets(0),
         topBar = {
-            PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
+            PrimaryTabRow(
+                selectedTabIndex = selectedTabIndex,
+                modifier = Modifier.statusBarsPadding()   // push tabs below status bar
+            ) {
                 Tab(
                     selected = selectedTabIndex == 0,
                     onClick = {
@@ -73,10 +81,10 @@ fun AppShell() {
             onBack = {},
             entryProvider = entryProvider {
                 entry<CalculatorRoute> {
-                    CalculatorScreen(modifier = Modifier.padding(innerPadding))
+                    CalculatorScreen(modifier = Modifier.padding(innerPadding).navigationBarsPadding())
                 }
                 entry<ConverterRoute> {
-                    ConverterScreen(modifier = Modifier.padding(innerPadding))
+                    ConverterScreen(modifier = Modifier.padding(innerPadding).navigationBarsPadding())
                 }
             }
         )
