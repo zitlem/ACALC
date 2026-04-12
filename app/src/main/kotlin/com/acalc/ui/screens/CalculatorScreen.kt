@@ -195,7 +195,7 @@ private fun ButtonGrid(
             ActionBtn(label = "C", shape = shape, onClick = onClear, modifier = Modifier.weight(1f))
             ActionBtn(label = "( )", shape = shape, onClick = onParen, modifier = Modifier.weight(1f))
             ActionBtn(label = "%", shape = shape, onClick = onPercent, modifier = Modifier.weight(1f))
-            OperatorBtn(label = "/", shape = shape, onClick = { onOperator("/") }, modifier = Modifier.weight(1f))
+            OperatorBtn(label = "÷", shape = shape, onClick = { onOperator("÷") }, modifier = Modifier.weight(1f))
         }
 
         // Row 2: 7, 8, 9, x
@@ -203,7 +203,7 @@ private fun ButtonGrid(
             DigitBtn(label = "7", shape = shape, onClick = { onDigit("7") }, modifier = Modifier.weight(1f))
             DigitBtn(label = "8", shape = shape, onClick = { onDigit("8") }, modifier = Modifier.weight(1f))
             DigitBtn(label = "9", shape = shape, onClick = { onDigit("9") }, modifier = Modifier.weight(1f))
-            OperatorBtn(label = "x", shape = shape, onClick = { onOperator("x") }, modifier = Modifier.weight(1f))
+            OperatorBtn(label = "×", shape = shape, onClick = { onOperator("×") }, modifier = Modifier.weight(1f))
         }
 
         // Row 3: 4, 5, 6, -

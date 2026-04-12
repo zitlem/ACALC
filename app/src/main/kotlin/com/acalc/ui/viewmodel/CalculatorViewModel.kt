@@ -61,7 +61,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         val lastChar = expression.last()
-        if (lastChar in "+-x/") {
+        if (lastChar in "+-×÷") {
             expression = expression.dropLast(1) + op
         } else {
             expression += op
@@ -72,7 +72,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
     fun onDecimal() {
         val currentToken = currentToken()
         if (currentToken.contains(".")) return
-        if (expression.isEmpty() || expression.last() in "+-x/") {
+        if (expression.isEmpty() || expression.last() in "+-×÷") {
             expression += "0."
         } else {
             expression += "."
@@ -193,7 +193,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun currentToken(): String {
-        val lastOpIndex = expression.indexOfLast { it in "+-x/" }
+        val lastOpIndex = expression.indexOfLast { it in "+-×÷" }
         return if (lastOpIndex == -1) expression else expression.substring(lastOpIndex + 1)
     }
 
@@ -203,9 +203,9 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun compute(): Double? {
-        val trimmed = expression.trimEnd { it in "+-x/" }
+        val trimmed = expression.trimEnd { it in "+-×÷" }
         if (trimmed.isEmpty()) return null
-        val sanitized = trimmed.replace("x", "*")
+        val sanitized = trimmed.replace("×", "*").replace("÷", "/")
         return evaluator.evaluate(sanitized)
     }
 
