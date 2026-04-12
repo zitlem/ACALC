@@ -166,7 +166,7 @@ private fun ButtonGrid(
     onShowHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(10.dp)
     var showAdvancedMenu by remember { mutableStateOf(false) }
 
     if (showAdvancedMenu) {
@@ -312,7 +312,7 @@ private fun HistoryBtn(
         onClick = onClick,
         shape = shape,
         modifier = modifier
-            .padding(4.dp)
+            .padding(3.dp)
             .height(52.dp)
     ) {
         Icon(Icons.Default.History, contentDescription = "History")
@@ -330,7 +330,7 @@ private fun DigitBtn(
         onClick = onClick,
         shape = shape,
         modifier = modifier
-            .padding(4.dp)
+            .padding(3.dp)
             .height(52.dp)
     ) {
         Text(text = label, style = MaterialTheme.typography.titleLarge)
@@ -348,7 +348,7 @@ private fun OperatorBtn(
         onClick = onClick,
         shape = shape,
         modifier = modifier
-            .padding(4.dp)
+            .padding(3.dp)
             .height(52.dp)
     ) {
         Text(text = label, style = MaterialTheme.typography.titleLarge)
@@ -366,7 +366,7 @@ private fun ActionBtn(
         onClick = onClick,
         shape = shape,
         modifier = modifier
-            .padding(4.dp)
+            .padding(3.dp)
             .height(52.dp)
     ) {
         Text(text = label, style = MaterialTheme.typography.titleLarge)
@@ -387,7 +387,7 @@ private fun EqualsBtn(
             contentColor = MaterialTheme.colorScheme.onTertiary
         ),
         modifier = modifier
-            .padding(4.dp)
+            .padding(3.dp)
             .height(52.dp)
     ) {
         Text(text = "=", style = MaterialTheme.typography.titleLarge)
