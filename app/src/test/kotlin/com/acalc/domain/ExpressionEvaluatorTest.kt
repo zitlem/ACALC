@@ -119,6 +119,28 @@ class ExpressionEvaluatorTest {
         assertNull(evaluator.evaluate("2 + + 3"))
     }
 
+    // --- Leading-dot decimals ---
+
+    @Test
+    fun `leading dot decimal`() {
+        assertEquals(0.2, evaluator.evaluate(".2")!!, delta)
+    }
+
+    @Test
+    fun `leading dot decimal subtraction`() {
+        assertEquals(0.08, evaluator.evaluate(".2-.12")!!, delta)
+    }
+
+    @Test
+    fun `leading dot decimal addition`() {
+        assertEquals(0.8, evaluator.evaluate(".5+.3")!!, delta)
+    }
+
+    @Test
+    fun `integer minus leading dot decimal`() {
+        assertEquals(0.93, evaluator.evaluate("1-.07")!!, delta)
+    }
+
     // --- Complex expressions ---
 
     @Test

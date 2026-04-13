@@ -2,7 +2,8 @@ package com.acalc.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
-import androidx.lifecycle.AndroidViewModel
+import android.content.SharedPreferences
+import androidx.lifecycle.ViewModel
 import com.acalc.data.CalculationEntity
 import com.acalc.domain.ExpressionEvaluator
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,9 +19,42 @@ data class CalculatorState(
     val isError: Boolean = false
 )
 
-class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
+/** Persistence abstraction so CalculatorViewModel can be unit-tested without an Application. */
+interface HistoryStorage {
+    fun load(): List<CalculationEntity>
+    fun save(items: List<CalculationEntity>)
+}
 
-    private val prefs = app.getSharedPreferences("acalc_prefs", Context.MODE_PRIVATE)
+private class SharedPrefsHistoryStorage(prefs: SharedPreferences) : HistoryStorage {
+    private val sp = prefs
+    override fun load(): List<CalculationEntity> {
+        val json = sp.getString("calculator_history", null) ?: return emptyList()
+        return try { Json.decodeFromString(json) } catch (_: Exception) { emptyList() }
+    }
+    override fun save(items: List<CalculationEntity>) {
+        sp.edit().putString("calculator_history", Json.encodeToString(items)).apply()
+    }
+}
+
+private object NoOpHistoryStorage : HistoryStorage {
+    override fun load(): List<CalculationEntity> = emptyList()
+    override fun save(items: List<CalculationEntity>) {}
+}
+
+class CalculatorViewModel(
+    private val historyStorage: HistoryStorage = NoOpHistoryStorage
+) : ViewModel() {
+
+    companion object {
+        /** Factory for use in the Activity/Composable with real SharedPreferences. */
+        fun create(app: Application): CalculatorViewModel =
+            CalculatorViewModel(
+                SharedPrefsHistoryStorage(
+                    app.getSharedPreferences("acalc_prefs", Context.MODE_PRIVATE)
+                )
+            )
+    }
+
     private val evaluator = ExpressionEvaluator()
 
     private val _state = MutableStateFlow(CalculatorState())
@@ -176,7 +210,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearHistory() {
         _history.value = emptyList()
-        prefs.edit().remove("calculator_history").apply()
+        historyStorage.save(emptyList())
     }
 
     // MARK: — Helpers
@@ -184,13 +218,10 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
     private fun saveHistory(expr: String, result: String) {
         val updated = listOf(CalculationEntity(expression = expr, result = result)) + _history.value
         _history.value = updated
-        prefs.edit().putString("calculator_history", Json.encodeToString(updated)).apply()
+        historyStorage.save(updated)
     }
 
-    private fun loadHistory(): List<CalculationEntity> {
-        val json = prefs.getString("calculator_history", null) ?: return emptyList()
-        return try { Json.decodeFromString(json) } catch (_: Exception) { emptyList() }
-    }
+    private fun loadHistory(): List<CalculationEntity> = historyStorage.load()
 
     private fun currentToken(): String {
         val lastOpIndex = expression.indexOfLast { it in "+-×÷" }
@@ -205,7 +236,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app) {
     private fun compute(): Double? {
         val trimmed = expression.trimEnd { it in "+-×÷" }
         if (trimmed.isEmpty()) return null
-        val sanitized = trimmed.replace("×", "*").replace("÷", "/")
+        val sanitized = trimmed.replace("×", "*").replace("÷", "/").replace("x", "*")
         return evaluator.evaluate(sanitized)
     }
 

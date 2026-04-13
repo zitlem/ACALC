@@ -153,6 +153,9 @@ class ConverterViewModel : ViewModel() {
             "."   -> when {
                 // Only add decimal to the last number in the expression
                 current.isEmpty() -> "0."
+                // After an operator, start a new decimal number: "0.2-" + "." → "0.2-0."
+                current.last() in "+-*/" -> "${current}0."
+                // Mid-number: only allow if the current last number has no decimal yet
                 current.last().isDigit() && !currentLastNumber(current).contains('.') -> "$current."
                 else -> current
             }

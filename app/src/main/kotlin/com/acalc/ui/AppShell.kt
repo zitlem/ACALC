@@ -37,7 +37,8 @@ data object ConverterRoute : TabRoute
 fun AppShell() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("acalc_prefs", Context.MODE_PRIVATE) }
-    val calcVm = viewModel<CalculatorViewModel>()
+    val app = context.applicationContext as android.app.Application
+    val calcVm = viewModel<CalculatorViewModel> { CalculatorViewModel.create(app) }
     val startRoute: TabRoute = remember {
         if (prefs.getBoolean("last_tab_converter", false)) ConverterRoute else CalculatorRoute
     }

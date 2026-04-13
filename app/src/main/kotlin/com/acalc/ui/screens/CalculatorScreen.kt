@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.acalc.data.CalculationEntity
@@ -48,7 +49,8 @@ import com.acalc.ui.viewmodel.CalculatorViewModel
 
 @Composable
 fun CalculatorScreen(modifier: Modifier = Modifier) {
-    val vm = viewModel<CalculatorViewModel>()
+    val app = LocalContext.current.applicationContext as android.app.Application
+    val vm = viewModel<CalculatorViewModel> { CalculatorViewModel.create(app) }
     val state by vm.state.collectAsStateWithLifecycle()
     val history by vm.history.collectAsStateWithLifecycle()
     var showHistory by remember { mutableStateOf(false) }
