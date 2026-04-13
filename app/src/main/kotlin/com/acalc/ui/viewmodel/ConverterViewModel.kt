@@ -276,10 +276,10 @@ class ConverterViewModel : ViewModel() {
 
     fun getConversionHint(state: ConverterState): String {
         if (state.selectedCategory == UnitCategory.TEMPERATURE) return ""
-        if (state.rows.size < 3) return ""
+        if (state.rows.size < 2) return ""
         val units = getUnitsForCategory(state.selectedCategory)
         val fromUnitIndex = state.rows[0].unitIndex
-        val toUnitIndex   = state.rows[2].unitIndex
+        val toUnitIndex   = state.rows[1].unitIndex
         if (fromUnitIndex == toUnitIndex) return ""
         val fromName = units.getOrNull(fromUnitIndex)?.second ?: return ""
         val toName   = units.getOrNull(toUnitIndex)?.second   ?: return ""
