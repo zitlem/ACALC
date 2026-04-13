@@ -274,6 +274,14 @@ class ConverterViewModel : ViewModel() {
         UnitCategory.DATA        -> DataUnit.entries.map { it.name to it.displayName }
     }
 
+    fun getLiveResult(state: ConverterState): String? {
+        val value = state.rows.getOrNull(state.activeRowIndex)?.value ?: return null
+        if (value.isEmpty()) return null
+        val evaluated = evaluator.evaluate(value) ?: return null
+        val result = formatConverted(BigDecimal(evaluated.toString()))
+        return if (result == value) null else result
+    }
+
     fun getConversionHint(state: ConverterState): String {
         if (state.selectedCategory == UnitCategory.TEMPERATURE) return ""
         if (state.rows.size < 2) return ""

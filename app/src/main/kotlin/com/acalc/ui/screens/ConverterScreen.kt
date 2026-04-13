@@ -94,12 +94,14 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
         if (state.selectedCategory == UnitCategory.TRIANGLE) {
             TriangleCalculatorContent(modifier = Modifier.weight(1f).fillMaxWidth())
         } else {
+            val liveResult = vm.getLiveResult(state)
             // Rows — each gets equal vertical space, all always visible
             state.rows.forEachIndexed { index, row ->
                 ConverterRowItem(
                     unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
                     value = row.value,
                     isActive = index == state.activeRowIndex,
+                    liveResult = if (index == state.activeRowIndex) liveResult else null,
                     onTap = { vm.onRowActivated(index) },
                     onUnitTap = { unitPickerRowIndex = index },
                     modifier = Modifier
@@ -155,6 +157,7 @@ private fun ConverterRowItem(
     unitName: String,
     value: String,
     isActive: Boolean,
+    liveResult: String?,
     onTap: () -> Unit,
     onUnitTap: () -> Unit,
     modifier: Modifier = Modifier
@@ -199,16 +202,42 @@ private fun ConverterRowItem(
                 .padding(horizontal = 10.dp),
             contentAlignment = Alignment.CenterEnd
         ) {
-            Text(
-                text = if (value.isEmpty() && isActive) "0" else value,
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.End,
-                color = if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
-                        else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (liveResult != null) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.End,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = liveResult,
+                        style = MaterialTheme.typography.titleLarge,
+                        textAlign = TextAlign.End,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } else {
+                Text(
+                    text = if (value.isEmpty() && isActive) "0" else value,
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.End,
+                    color = if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }
