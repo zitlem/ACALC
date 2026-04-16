@@ -357,10 +357,10 @@ class ConverterViewModel : ViewModel() {
         // forward uses × if factor >= 1, otherwise shows ÷ canonical; backward is the mirror.
         return if (rateForward >= BigDecimal.ONE) {
             val fwd = rateForward.setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
-            "$fromName → $toName:  × $fwd\n$toName → $fromName:  ÷ $fwd"
+            "$fromName → $toName: × $fwd  |  $toName → $fromName: ÷ $fwd"
         } else {
             val bwd = rateBackward.setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
-            "$fromName → $toName:  ÷ $bwd\n$toName → $fromName:  × $bwd"
+            "$fromName → $toName: ÷ $bwd  |  $toName → $fromName: × $bwd"
         }
     }
 

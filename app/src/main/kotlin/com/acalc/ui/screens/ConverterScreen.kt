@@ -38,7 +38,6 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -129,7 +128,8 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.End,
-                    maxLines = 2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp)
@@ -227,9 +227,8 @@ private fun ConverterRowItem(
                         selection = TextRange(cursorPos.coerceIn(0, value.length))
                     )
                     val interactionSourceExpr = remember { MutableInteractionSource() }
-                    val isFocusedExpr by interactionSourceExpr.collectIsFocusedAsState()
-                    LaunchedEffect(isFocusedExpr) {
-                        if (isFocusedExpr) keyboardController?.hide()
+                    LaunchedEffect(interactionSourceExpr) {
+                        interactionSourceExpr.interactions.collect { keyboardController?.hide() }
                     }
                     BasicTextField(
                         value = tfv,
@@ -268,9 +267,8 @@ private fun ConverterRowItem(
                     selection = TextRange(cursorPos.coerceIn(0, displayValue.length))
                 )
                 val interactionSourceVal = remember { MutableInteractionSource() }
-                val isFocusedVal by interactionSourceVal.collectIsFocusedAsState()
-                LaunchedEffect(isFocusedVal) {
-                    if (isFocusedVal) keyboardController?.hide()
+                LaunchedEffect(interactionSourceVal) {
+                    interactionSourceVal.interactions.collect { keyboardController?.hide() }
                 }
                 BasicTextField(
                     value = tfv,
