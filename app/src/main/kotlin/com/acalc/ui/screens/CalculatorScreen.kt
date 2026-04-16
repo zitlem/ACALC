@@ -128,7 +128,7 @@ private fun CalculatorContent(
                 onEquals = onEquals,
                 onShowHistory = onShowHistory,
                 fillHeight = true,
-                modifier = Modifier.fillMaxHeight()
+                modifier = Modifier.weight(1f).fillMaxHeight()
             )
         }
     } else {

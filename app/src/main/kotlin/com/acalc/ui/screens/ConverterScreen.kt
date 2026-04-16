@@ -56,7 +56,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -141,13 +140,13 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
                             )
                         }
                     }
-                    HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
+                    androidx.compose.material3.VerticalDivider()
                     ConverterNumpad(
                         onKey = vm::onNumpadKey,
                         onEnter = vm::onEnter,
                         onFocusNext = vm::onFocusNextRow,
                         fillHeight = true,
-                        modifier = Modifier.fillMaxHeight()
+                        modifier = Modifier.weight(1f).fillMaxHeight()
                     )
                 }
             } else {
