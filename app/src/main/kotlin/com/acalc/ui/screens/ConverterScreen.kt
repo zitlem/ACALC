@@ -54,6 +54,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.acalc.domain.UnitCategory
@@ -84,9 +88,11 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
     val unitOptions = vm.getUnitsForCategory(state.selectedCategory)
     var unitPickerRowIndex by remember { mutableStateOf<Int?>(null) }
 
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     Column(modifier = modifier.fillMaxSize()) {
 
-        // Category tabs
+        // Category tabs — always at top full width
         val categories = UnitCategory.entries
         val selectedIndex = categories.indexOf(state.selectedCategory)
         PrimaryScrollableTabRow(selectedTabIndex = selectedIndex, modifier = Modifier.fillMaxWidth()) {
@@ -103,50 +109,82 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
             TriangleCalculatorContent(modifier = Modifier.weight(1f).fillMaxWidth())
         } else {
             val liveResult = vm.getLiveResult(state)
-            // Rows — each gets equal vertical space, all always visible
-            state.rows.forEachIndexed { index, row ->
-                ConverterRowItem(
-                    unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
-                    value = row.value,
-                    cursorPos = row.cursorPos,
-                    isActive = index == state.activeRowIndex,
-                    liveResult = if (index == state.activeRowIndex) liveResult else null,
-                    onTap = { vm.onRowActivated(index) },
-                    onUnitTap = { unitPickerRowIndex = index },
-                    onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .heightIn(max = 80.dp)
-                )
-                HorizontalDivider()
-            }
-
-            // Conversion hint — two lines: "unitA → unitB: × factor" and reverse
             val hint = vm.getConversionHint(state)
-            if (hint.isNotEmpty()) {
-                Text(
-                    text = hint,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
+
+            if (isLandscape) {
+                // Landscape: rows + hint on left, numpad on right
+                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        state.rows.forEachIndexed { index, row ->
+                            ConverterRowItem(
+                                unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
+                                value = row.value,
+                                cursorPos = row.cursorPos,
+                                isActive = index == state.activeRowIndex,
+                                liveResult = if (index == state.activeRowIndex) liveResult else null,
+                                onTap = { vm.onRowActivated(index) },
+                                onUnitTap = { unitPickerRowIndex = index },
+                                onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
+                                modifier = Modifier.fillMaxWidth().weight(1f)
+                            )
+                            HorizontalDivider()
+                        }
+                        if (hint.isNotEmpty()) {
+                            Text(
+                                text = hint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.End,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
+                    ConverterNumpad(
+                        onKey = vm::onNumpadKey,
+                        onEnter = vm::onEnter,
+                        onFocusNext = vm::onFocusNextRow,
+                        fillHeight = true,
+                        modifier = Modifier.fillMaxHeight()
+                    )
+                }
+            } else {
+                // Portrait: rows stacked, hint, numpad below
+                state.rows.forEachIndexed { index, row ->
+                    ConverterRowItem(
+                        unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
+                        value = row.value,
+                        cursorPos = row.cursorPos,
+                        isActive = index == state.activeRowIndex,
+                        liveResult = if (index == state.activeRowIndex) liveResult else null,
+                        onTap = { vm.onRowActivated(index) },
+                        onUnitTap = { unitPickerRowIndex = index },
+                        onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
+                        modifier = Modifier.fillMaxWidth().weight(1f).heightIn(max = 80.dp)
+                    )
+                    HorizontalDivider()
+                }
+                if (hint.isNotEmpty()) {
+                    Text(
+                        text = hint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
+                HorizontalDivider()
+                ConverterNumpad(
+                    onKey = vm::onNumpadKey,
+                    onEnter = vm::onEnter,
+                    onFocusNext = vm::onFocusNextRow,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-
-            HorizontalDivider()
-
-            // Calculator-style numpad
-            ConverterNumpad(
-                onKey = vm::onNumpadKey,
-                onEnter = vm::onEnter,
-                onFocusNext = vm::onFocusNextRow,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 
@@ -366,13 +404,15 @@ private fun ConverterNumpad(
     onKey: (String) -> Unit,
     onEnter: () -> Unit,
     onFocusNext: () -> Unit,
+    fillHeight: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(10.dp)
 
     Column(modifier = modifier.padding(4.dp)) {
+        val rowMod = if (fillHeight) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth()
         // Row 1: C  ⌫  ±  ÷
-        Row(Modifier.fillMaxWidth()) {
+        Row(rowMod) {
             NumpadAction("C",  shape, { onKey("C") },  Modifier.weight(1f))
             NumpadAction(null, shape, { onKey("⌫") }, Modifier.weight(1f)) {
                 Icon(Icons.Default.Backspace, contentDescription = "Backspace", modifier = Modifier.size(20.dp))
@@ -381,28 +421,28 @@ private fun ConverterNumpad(
             NumpadOperator("÷", shape, { onKey("÷") }, Modifier.weight(1f))
         }
         // Row 2: 7  8  9  ×
-        Row(Modifier.fillMaxWidth()) {
+        Row(rowMod) {
             NumpadDigit("7", shape, { onKey("7") }, Modifier.weight(1f))
             NumpadDigit("8", shape, { onKey("8") }, Modifier.weight(1f))
             NumpadDigit("9", shape, { onKey("9") }, Modifier.weight(1f))
             NumpadOperator("×", shape, { onKey("×") }, Modifier.weight(1f))
         }
         // Row 3: 4  5  6  -
-        Row(Modifier.fillMaxWidth()) {
+        Row(rowMod) {
             NumpadDigit("4", shape, { onKey("4") }, Modifier.weight(1f))
             NumpadDigit("5", shape, { onKey("5") }, Modifier.weight(1f))
             NumpadDigit("6", shape, { onKey("6") }, Modifier.weight(1f))
             NumpadOperator("-", shape, { onKey("-") }, Modifier.weight(1f))
         }
         // Row 4: 1  2  3  +
-        Row(Modifier.fillMaxWidth()) {
+        Row(rowMod) {
             NumpadDigit("1", shape, { onKey("1") }, Modifier.weight(1f))
             NumpadDigit("2", shape, { onKey("2") }, Modifier.weight(1f))
             NumpadDigit("3", shape, { onKey("3") }, Modifier.weight(1f))
             NumpadOperator("+", shape, { onKey("+") }, Modifier.weight(1f))
         }
         // Row 5: ↓  0  .  =
-        Row(Modifier.fillMaxWidth()) {
+        Row(rowMod) {
             NumpadAction(null, shape, onFocusNext, Modifier.weight(1f)) {
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Focus next row", modifier = Modifier.size(20.dp))
             }

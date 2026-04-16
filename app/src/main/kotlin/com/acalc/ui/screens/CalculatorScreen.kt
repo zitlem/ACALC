@@ -45,6 +45,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -102,28 +105,56 @@ private fun CalculatorContent(
     onShowHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
-        DisplayArea(
-            expression = state.expression,
-            cursorPos = state.cursorPos,
-            result = state.result,
-            isError = state.isError,
-            onCursorMoved = onCursorMoved,
-            modifier = Modifier.weight(1f)
-        )
-        ButtonGrid(
-            onDigit = onDigit,
-            onOperator = onOperator,
-            onAdvanced = onAdvanced,
-            onParen = onParen,
-            onDecimal = onDecimal,
-            onClear = onClear,
-            onBackspace = onBackspace,
-            onPercent = onPercent,
-            onEquals = onEquals,
-            onShowHistory = onShowHistory,
-            modifier = Modifier.fillMaxWidth()
-        )
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    if (isLandscape) {
+        Row(modifier = modifier.fillMaxSize()) {
+            DisplayArea(
+                expression = state.expression,
+                cursorPos = state.cursorPos,
+                result = state.result,
+                isError = state.isError,
+                onCursorMoved = onCursorMoved,
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            )
+            ButtonGrid(
+                onDigit = onDigit,
+                onOperator = onOperator,
+                onAdvanced = onAdvanced,
+                onParen = onParen,
+                onDecimal = onDecimal,
+                onClear = onClear,
+                onBackspace = onBackspace,
+                onPercent = onPercent,
+                onEquals = onEquals,
+                onShowHistory = onShowHistory,
+                fillHeight = true,
+                modifier = Modifier.fillMaxHeight()
+            )
+        }
+    } else {
+        Column(modifier = modifier.fillMaxSize()) {
+            DisplayArea(
+                expression = state.expression,
+                cursorPos = state.cursorPos,
+                result = state.result,
+                isError = state.isError,
+                onCursorMoved = onCursorMoved,
+                modifier = Modifier.weight(1f)
+            )
+            ButtonGrid(
+                onDigit = onDigit,
+                onOperator = onOperator,
+                onAdvanced = onAdvanced,
+                onParen = onParen,
+                onDecimal = onDecimal,
+                onClear = onClear,
+                onBackspace = onBackspace,
+                onPercent = onPercent,
+                onEquals = onEquals,
+                onShowHistory = onShowHistory,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 
@@ -204,6 +235,7 @@ private fun ButtonGrid(
     onPercent: () -> Unit,
     onEquals: () -> Unit,
     onShowHistory: () -> Unit,
+    fillHeight: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(10.dp)
@@ -220,6 +252,7 @@ private fun ButtonGrid(
     }
 
     Column(modifier = modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
+        val rowMod = if (fillHeight) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth()
         // Compact strip: •••  ⌫
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -231,7 +264,7 @@ private fun ButtonGrid(
         }
 
         // Row 1: C, ( ), %, /
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = rowMod) {
             ActionBtn(label = "C", shape = shape, onClick = onClear, modifier = Modifier.weight(1f))
             ActionBtn(label = "( )", shape = shape, onClick = onParen, modifier = Modifier.weight(1f))
             ActionBtn(label = "%", shape = shape, onClick = onPercent, modifier = Modifier.weight(1f))
@@ -239,7 +272,7 @@ private fun ButtonGrid(
         }
 
         // Row 2: 7, 8, 9, x
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = rowMod) {
             DigitBtn(label = "7", shape = shape, onClick = { onDigit("7") }, modifier = Modifier.weight(1f))
             DigitBtn(label = "8", shape = shape, onClick = { onDigit("8") }, modifier = Modifier.weight(1f))
             DigitBtn(label = "9", shape = shape, onClick = { onDigit("9") }, modifier = Modifier.weight(1f))
@@ -247,7 +280,7 @@ private fun ButtonGrid(
         }
 
         // Row 3: 4, 5, 6, -
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = rowMod) {
             DigitBtn(label = "4", shape = shape, onClick = { onDigit("4") }, modifier = Modifier.weight(1f))
             DigitBtn(label = "5", shape = shape, onClick = { onDigit("5") }, modifier = Modifier.weight(1f))
             DigitBtn(label = "6", shape = shape, onClick = { onDigit("6") }, modifier = Modifier.weight(1f))
@@ -255,7 +288,7 @@ private fun ButtonGrid(
         }
 
         // Row 4: 1, 2, 3, +
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = rowMod) {
             DigitBtn(label = "1", shape = shape, onClick = { onDigit("1") }, modifier = Modifier.weight(1f))
             DigitBtn(label = "2", shape = shape, onClick = { onDigit("2") }, modifier = Modifier.weight(1f))
             DigitBtn(label = "3", shape = shape, onClick = { onDigit("3") }, modifier = Modifier.weight(1f))
@@ -263,7 +296,7 @@ private fun ButtonGrid(
         }
 
         // Row 5: history, 0, ., =
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = rowMod) {
             HistoryBtn(shape = shape, onClick = onShowHistory, modifier = Modifier.weight(1f))
             DigitBtn(label = "0", shape = shape, onClick = { onDigit("0") }, modifier = Modifier.weight(1f))
             DigitBtn(label = ".", shape = shape, onClick = onDecimal, modifier = Modifier.weight(1f))
