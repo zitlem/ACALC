@@ -208,7 +208,11 @@ class ConverterViewModel(
     // MARK: — Row activation
 
     fun onRowActivated(index: Int) {
-        setState(_state.value.copy(activeRowIndex = index))
+        val state = _state.value
+        if (index == state.activeRowIndex) return
+        val rows = state.rows.toMutableList()
+        commitExpression(rows, state.activeRowIndex)
+        setState(state.copy(rows = rows, activeRowIndex = index))
     }
 
     /** Called by the UI when the user taps to reposition the cursor in any row.
@@ -217,10 +221,23 @@ class ConverterViewModel(
         val state = _state.value
         val rows = state.rows.toMutableList()
         if (rowIndex !in rows.indices) return
+        if (rowIndex != state.activeRowIndex) {
+            commitExpression(rows, state.activeRowIndex)
+        }
         val value = rows[rowIndex].value
         val clamped = newPos.coerceIn(0, value.length)
         rows[rowIndex] = rows[rowIndex].copy(cursorPos = clamped)
         setState(state.copy(rows = rows, activeRowIndex = rowIndex))
+    }
+
+    /** If the row at [rowIndex] has an unevaluated expression, resolves it to its numeric result in-place. */
+    private fun commitExpression(rows: MutableList<ConverterRow>, rowIndex: Int) {
+        val row = rows.getOrNull(rowIndex) ?: return
+        val evaluated = evaluator.evaluate(row.value) ?: return
+        val displayValue = formatConverted(BigDecimal(evaluated.toString()))
+        if (displayValue != row.value) {
+            rows[rowIndex] = row.copy(value = displayValue, cursorPos = displayValue.length)
+        }
     }
 
     // MARK: — Numpad input
