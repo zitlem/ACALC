@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -216,49 +217,116 @@ private fun ConverterRowItem(
                 .padding(horizontal = 10.dp),
             contentAlignment = Alignment.CenterEnd
         ) {
+            // Shared interaction state for expression field (needed in both layout branches)
+            val interactionSourceExpr = remember { MutableInteractionSource() }
+            LaunchedEffect(interactionSourceExpr) {
+                interactionSourceExpr.interactions.collect { keyboardController?.hide() }
+            }
+            val tfvExpr = if (liveResult != null && liveResult != value) TextFieldValue(
+                text = value,
+                selection = TextRange(cursorPos.coerceIn(0, value.length))
+            ) else null
+
             if (liveResult != null && liveResult != value) {
-                // Expression mode: user typed something like "25+10" which evaluates to "35".
-                // Show everything on one line: [expression] = [result]
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                // Expression mode — choose 2-line or compact 1-line based on available height.
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.CenterEnd
                 ) {
-                    val tfv = TextFieldValue(
-                        text = value,
-                        selection = TextRange(cursorPos.coerceIn(0, value.length))
-                    )
-                    val interactionSourceExpr = remember { MutableInteractionSource() }
-                    LaunchedEffect(interactionSourceExpr) {
-                        interactionSourceExpr.interactions.collect { keyboardController?.hide() }
-                    }
-                    BasicTextField(
-                        value = tfv,
-                        onValueChange = { newTfv ->
-                            if (newTfv.text == value) {
-                                onCursorMoved(newTfv.selection.start)
+                    // Mode 1 — full:          ≥ 52dp  → 2 lines, full-size text
+                    // Mode 2 — scaled 2-line: ≥ 34dp  → 2 lines, smaller text
+                    // Mode 3 — single line:   < 34dp  → 1 line, smallest text
+                    when {
+                        maxHeight >= 52.dp -> {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                BasicTextField(
+                                    value = tfvExpr!!,
+                                    onValueChange = { newTfv ->
+                                        if (newTfv.text == value) onCursorMoved(newTfv.selection.start)
+                                        keyboardController?.hide()
+                                    },
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                        textAlign = TextAlign.End,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    singleLine = true,
+                                    interactionSource = interactionSourceExpr,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text(
+                                    text = "= $liveResult",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
-                            keyboardController?.hide()
-                        },
-                        textStyle = MaterialTheme.typography.titleLarge.copy(
-                            textAlign = TextAlign.End,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        singleLine = true,
-                        interactionSource = interactionSourceExpr,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = " = ",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = liveResult,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                        }
+                        maxHeight >= 34.dp -> {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                BasicTextField(
+                                    value = tfvExpr!!,
+                                    onValueChange = { newTfv ->
+                                        if (newTfv.text == value) onCursorMoved(newTfv.selection.start)
+                                        keyboardController?.hide()
+                                    },
+                                    textStyle = MaterialTheme.typography.labelSmall.copy(
+                                        textAlign = TextAlign.End,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    singleLine = true,
+                                    interactionSource = interactionSourceExpr,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text(
+                                    text = "= $liveResult",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                        else -> {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                BasicTextField(
+                                    value = tfvExpr!!,
+                                    onValueChange = { newTfv ->
+                                        if (newTfv.text == value) onCursorMoved(newTfv.selection.start)
+                                        keyboardController?.hide()
+                                    },
+                                    textStyle = MaterialTheme.typography.labelSmall.copy(
+                                        textAlign = TextAlign.End,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    singleLine = true,
+                                    interactionSource = interactionSourceExpr,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = " = $liveResult",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
                 }
             } else {
                 // Single-line value display (active or inactive).
