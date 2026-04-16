@@ -24,6 +24,8 @@ data class CalculatorState(
 interface HistoryStorage {
     fun load(): List<CalculationEntity>
     fun save(items: List<CalculationEntity>)
+    fun loadExpression(): String
+    fun saveExpression(expr: String)
 }
 
 private class SharedPrefsHistoryStorage(prefs: SharedPreferences) : HistoryStorage {
@@ -35,11 +37,18 @@ private class SharedPrefsHistoryStorage(prefs: SharedPreferences) : HistoryStora
     override fun save(items: List<CalculationEntity>) {
         sp.edit().putString("calculator_history", Json.encodeToString(items)).apply()
     }
+    override fun loadExpression(): String =
+        sp.getString("calculator_expression", null) ?: ""
+    override fun saveExpression(expr: String) {
+        sp.edit().putString("calculator_expression", expr).apply()
+    }
 }
 
 private object NoOpHistoryStorage : HistoryStorage {
     override fun load(): List<CalculationEntity> = emptyList()
     override fun save(items: List<CalculationEntity>) {}
+    override fun loadExpression(): String = ""
+    override fun saveExpression(expr: String) {}
 }
 
 class CalculatorViewModel(
@@ -58,20 +67,29 @@ class CalculatorViewModel(
 
     private val evaluator = ExpressionEvaluator()
 
-    private val _state = MutableStateFlow(CalculatorState())
-    val state: StateFlow<CalculatorState> = _state
-
     private val _history = MutableStateFlow(loadHistory())
     val history: StateFlow<List<CalculationEntity>> = _history
 
     // Raw expression string (no formatting). Kept in sync with _state.value.expression.
-    private var expression = ""
+    private var expression = historyStorage.loadExpression()
 
     // Cursor position within expression (index of insertion point, 0..expression.length).
-    private var cursorPos = 0
+    private var cursorPos = expression.length
 
     // True after a successful onEquals() or onPercent() — tracks that the result is currently shown.
     private var resultShown = false
+
+    private val _state = MutableStateFlow(run {
+        val live = if (expression.isNotEmpty()) tryComputeFormatted() else null
+        CalculatorState(expression = expression, result = live ?: "", cursorPos = cursorPos)
+    })
+    val state: StateFlow<CalculatorState> = _state
+
+    /** Emits new state and persists the expression. */
+    private fun emitState(s: CalculatorState) {
+        _state.value = s
+        historyStorage.saveExpression(s.expression)
+    }
 
     /** Called by the UI when the user taps to reposition the cursor. */
     fun onCursorMoved(newPos: Int) {
@@ -91,7 +109,7 @@ class CalculatorViewModel(
         expression = expression.insert(cursorPos, digit)
         cursorPos += digit.length
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
+        emitState(_state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos))
     }
 
     fun onOperator(op: String) {
@@ -99,7 +117,7 @@ class CalculatorViewModel(
             if (op == "-") {
                 expression = "-"
                 cursorPos = 1
-                _state.value = _state.value.copy(expression = expression, result = "", isError = false, cursorPos = cursorPos)
+                emitState(_state.value.copy(expression = expression, result = "", isError = false, cursorPos = cursorPos))
             }
             return
         }
@@ -117,7 +135,7 @@ class CalculatorViewModel(
             expression = expression.insert(cursorPos, op)
             cursorPos += op.length
         }
-        _state.value = _state.value.copy(expression = expression, result = "", isError = false, cursorPos = cursorPos)
+        emitState(_state.value.copy(expression = expression, result = "", isError = false, cursorPos = cursorPos))
     }
 
     fun onDecimal() {
@@ -134,7 +152,7 @@ class CalculatorViewModel(
         cursorPos += insertion.length
         resultShown = false
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
+        emitState(_state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos))
     }
 
     fun onClear() {
@@ -144,7 +162,7 @@ class CalculatorViewModel(
         expression = ""
         cursorPos = 0
         resultShown = false
-        _state.value = CalculatorState()
+        emitState(CalculatorState())
     }
 
     fun onBackspace() {
@@ -153,7 +171,7 @@ class CalculatorViewModel(
         cursorPos -= 1
         resultShown = false
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
+        emitState(_state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos))
     }
 
     fun onPercent() {
@@ -167,11 +185,11 @@ class CalculatorViewModel(
             val formatted = formatResult(result)
             expression = result.toBigDecimal().stripTrailingZeros().toPlainString()
             cursorPos = expression.length
-            _state.value = _state.value.copy(expression = expression, result = formatted, isError = false, cursorPos = cursorPos)
+            emitState(_state.value.copy(expression = expression, result = formatted, isError = false, cursorPos = cursorPos))
             resultShown = true
             saveHistory(originalExpression, formatted)
         } else {
-            _state.value = _state.value.copy(result = "Error", isError = true)
+            emitState(_state.value.copy(result = "Error", isError = true))
             resultShown = false
         }
     }
@@ -186,7 +204,7 @@ class CalculatorViewModel(
                 cursorPos = key.length
                 resultShown = false
                 val live = tryComputeFormatted()
-                _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
+                emitState(_state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos))
                 return
             }
             resultShown = false
@@ -194,7 +212,7 @@ class CalculatorViewModel(
         expression = expression.insert(cursorPos, key)
         cursorPos += key.length
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
+        emitState(_state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos))
     }
 
     // Smart ( ) — adds ( if parens are balanced, ) if there's an unclosed one
@@ -203,7 +221,7 @@ class CalculatorViewModel(
             expression = "("
             cursorPos = 1
             resultShown = false
-            _state.value = _state.value.copy(expression = expression, result = "", isError = false, cursorPos = cursorPos)
+            emitState(_state.value.copy(expression = expression, result = "", isError = false, cursorPos = cursorPos))
             return
         }
         val open = expression.count { it == '(' }
@@ -212,7 +230,7 @@ class CalculatorViewModel(
         expression = expression.insert(cursorPos, toAdd)
         cursorPos += 1
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
+        emitState(_state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos))
     }
 
     fun onTabLeave() {
@@ -229,11 +247,11 @@ class CalculatorViewModel(
             val formatted = formatResult(result)
             expression = result.toBigDecimal().stripTrailingZeros().toPlainString()
             cursorPos = expression.length
-            _state.value = _state.value.copy(expression = expression, result = formatted, isError = false, cursorPos = cursorPos)
+            emitState(_state.value.copy(expression = expression, result = formatted, isError = false, cursorPos = cursorPos))
             resultShown = true
             saveHistory(originalExpression, formatted)
         } else {
-            _state.value = _state.value.copy(result = "Error", isError = true)
+            emitState(_state.value.copy(result = "Error", isError = true))
             resultShown = false
         }
     }

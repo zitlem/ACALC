@@ -1,5 +1,8 @@
 package com.acalc.ui.viewmodel
 
+import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import com.acalc.domain.AngleUnit
 import com.acalc.domain.AreaUnit
@@ -19,20 +22,54 @@ import com.acalc.domain.VolumeUnit
 import com.acalc.domain.WeightUnit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.math.BigDecimal
 import java.math.RoundingMode
 
+@Serializable
 data class ConverterRow(
     val unitIndex: Int,
     val value: String,
     val cursorPos: Int = 0
 )
 
+@Serializable
 data class ConverterState(
     val selectedCategory: UnitCategory = UnitCategory.LENGTH,
     val rows: List<ConverterRow> = defaultRowsFor(UnitCategory.LENGTH),
     val activeRowIndex: Int = 0
 )
+
+// ── Persistence ──────────────────────────────────────────────────────────────
+
+@Serializable
+data class ConverterSavedState(
+    val currentCategory: UnitCategory,
+    val categoryMap: Map<UnitCategory, ConverterState>
+)
+
+interface ConverterStorage {
+    fun load(): ConverterSavedState?
+    fun save(saved: ConverterSavedState)
+}
+
+private class SharedPrefsConverterStorage(prefs: SharedPreferences) : ConverterStorage {
+    private val sp = prefs
+    override fun load(): ConverterSavedState? {
+        val json = sp.getString("converter_state", null) ?: return null
+        return try { Json.decodeFromString(json) } catch (_: Exception) { null }
+    }
+    override fun save(saved: ConverterSavedState) {
+        sp.edit().putString("converter_state", Json.encodeToString(saved)).apply()
+    }
+}
+
+private object NoOpConverterStorage : ConverterStorage {
+    override fun load(): ConverterSavedState? = null
+    override fun save(saved: ConverterSavedState) {}
+}
 
 private fun defaultRowsFor(category: UnitCategory): List<ConverterRow> = when (category) {
     UnitCategory.TRIANGLE    -> emptyList()
@@ -114,30 +151,64 @@ private fun defaultRowsFor(category: UnitCategory): List<ConverterRow> = when (c
     )
 }
 
-class ConverterViewModel : ViewModel() {
+class ConverterViewModel(
+    private val storage: ConverterStorage = NoOpConverterStorage
+) : ViewModel() {
+
+    companion object {
+        fun create(app: Application): ConverterViewModel =
+            ConverterViewModel(
+                SharedPrefsConverterStorage(
+                    app.getSharedPreferences("acalc_prefs", Context.MODE_PRIVATE)
+                )
+            )
+    }
 
     private val evaluator = ExpressionEvaluator()
     private val engine = ConversionEngine()
 
-    private val _state = MutableStateFlow(ConverterState())
-    val state: StateFlow<ConverterState> = _state
+    private val categoryStateMap: MutableMap<UnitCategory, ConverterState>
 
-    private val categoryStateMap: MutableMap<UnitCategory, ConverterState> = mutableMapOf()
+    private val _state: MutableStateFlow<ConverterState>
+    val state: StateFlow<ConverterState> get() = _state
+
+    init {
+        val saved = storage.load()
+        if (saved != null) {
+            categoryStateMap = saved.categoryMap.toMutableMap()
+            _state = MutableStateFlow(
+                saved.categoryMap[saved.currentCategory]
+                    ?: ConverterState(selectedCategory = saved.currentCategory,
+                                      rows = defaultRowsFor(saved.currentCategory))
+            )
+        } else {
+            categoryStateMap = mutableMapOf()
+            _state = MutableStateFlow(ConverterState())
+        }
+    }
+
+    /** Sets state, syncs the category map, and persists. */
+    private fun setState(newState: ConverterState) {
+        categoryStateMap[newState.selectedCategory] = newState
+        _state.value = newState
+        storage.save(ConverterSavedState(newState.selectedCategory, categoryStateMap.toMap()))
+    }
 
     // MARK: — Category switching
 
     fun onCategorySelected(category: UnitCategory) {
         categoryStateMap[_state.value.selectedCategory] = _state.value
-        _state.value = categoryStateMap[category] ?: ConverterState(
+        val next = categoryStateMap[category] ?: ConverterState(
             selectedCategory = category,
             rows = defaultRowsFor(category)
         )
+        setState(next)
     }
 
     // MARK: — Row activation
 
     fun onRowActivated(index: Int) {
-        _state.value = _state.value.copy(activeRowIndex = index)
+        setState(_state.value.copy(activeRowIndex = index))
     }
 
     /** Called by the UI when the user taps to reposition the cursor in any row.
@@ -149,7 +220,7 @@ class ConverterViewModel : ViewModel() {
         val value = rows[rowIndex].value
         val clamped = newPos.coerceIn(0, value.length)
         rows[rowIndex] = rows[rowIndex].copy(cursorPos = clamped)
-        _state.value = state.copy(rows = rows, activeRowIndex = rowIndex)
+        setState(state.copy(rows = rows, activeRowIndex = rowIndex))
     }
 
     // MARK: — Numpad input
@@ -233,12 +304,12 @@ class ConverterViewModel : ViewModel() {
 
         if (newValue.isEmpty()) {
             val cleared = rows.mapIndexed { i, r -> if (i == activeIndex) r else r.copy(value = "") }
-            _state.value = state.copy(rows = cleared)
+            setState(state.copy(rows = cleared))
             return
         }
 
         val evaluated = evaluator.evaluate(newValue) ?: run {
-            _state.value = state.copy(rows = rows)
+            setState(state.copy(rows = rows))
             return
         }
 
@@ -257,7 +328,7 @@ class ConverterViewModel : ViewModel() {
             1    -> 0
             else -> state.activeRowIndex
         }
-        _state.value = state.copy(rows = rows, activeRowIndex = newActive)
+        setState(state.copy(rows = rows, activeRowIndex = newActive))
     }
 
     // MARK: — Unit selection
@@ -266,7 +337,7 @@ class ConverterViewModel : ViewModel() {
         val state = _state.value
         val rows = state.rows.toMutableList()
         rows[rowIndex] = rows[rowIndex].copy(unitIndex = unitIndex)
-        _state.value = state.copy(rows = rows)
+        setState(state.copy(rows = rows))
 
         val activeIndex = state.activeRowIndex
         val activeValue = rows[activeIndex].value
@@ -285,14 +356,14 @@ class ConverterViewModel : ViewModel() {
         val s = _state.value
         if (s.rows.isEmpty()) return
         val prev = (s.activeRowIndex - 1 + s.rows.size) % s.rows.size
-        _state.value = s.copy(activeRowIndex = prev)
+        setState(s.copy(activeRowIndex = prev))
     }
 
     fun onFocusNextRow() {
         val s = _state.value
         if (s.rows.isEmpty()) return
         val next = (s.activeRowIndex + 1) % s.rows.size
-        _state.value = s.copy(activeRowIndex = next)
+        setState(s.copy(activeRowIndex = next))
     }
 
     fun onExprCalcCommit(expression: String) {
@@ -381,7 +452,7 @@ class ConverterViewModel : ViewModel() {
                 r.copy(value = newValue, cursorPos = newValue.length)
             }
         }
-        _state.value = state.copy(rows = finalRows)
+        setState(state.copy(rows = finalRows))
     }
 
     private fun convertBetween(

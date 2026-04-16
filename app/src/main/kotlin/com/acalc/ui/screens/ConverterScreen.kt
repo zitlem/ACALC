@@ -77,7 +77,8 @@ private val CATEGORY_LABELS = mapOf(
 
 @Composable
 fun ConverterScreen(modifier: Modifier = Modifier) {
-    val vm = viewModel<ConverterViewModel> { ConverterViewModel() }
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as android.app.Application
+    val vm = viewModel<ConverterViewModel> { ConverterViewModel.create(app) }
     val state by vm.state.collectAsStateWithLifecycle()
     val unitOptions = vm.getUnitsForCategory(state.selectedCategory)
     var unitPickerRowIndex by remember { mutableStateOf<Int?>(null) }
