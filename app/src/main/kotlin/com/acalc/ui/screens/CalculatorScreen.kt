@@ -29,7 +29,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -154,7 +157,12 @@ private fun DisplayArea(
         Spacer(Modifier.weight(1f))
 
         // BasicTextField renders the blinking cursor. readOnly=false so taps can reposition it.
-        // We hide the system keyboard immediately on focus.
+        // We suppress the system keyboard: hide on focus gain and on every value change.
+        val interactionSource = remember { MutableInteractionSource() }
+        val isFocused by interactionSource.collectIsFocusedAsState()
+        LaunchedEffect(isFocused) {
+            if (isFocused) keyboardController?.hide()
+        }
         BasicTextField(
             value = tfv,
             onValueChange = { newTfv ->
@@ -167,6 +175,7 @@ private fun DisplayArea(
             },
             textStyle = textStyle,
             singleLine = true,
+            interactionSource = interactionSource,
             modifier = Modifier
                 .fillMaxWidth()
         )

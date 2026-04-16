@@ -345,18 +345,22 @@ class ConverterViewModel : ViewModel() {
         if (fromUnitIndex == toUnitIndex) return ""
         val fromName = units.getOrNull(fromUnitIndex)?.second ?: return ""
         val toName   = units.getOrNull(toUnitIndex)?.second   ?: return ""
-        val rate = runCatching {
+
+        val rateForward = runCatching {
             convertBetween(BigDecimal.ONE, fromUnitIndex, toUnitIndex, state.selectedCategory)
         }.getOrNull() ?: return ""
-        return if (rate >= BigDecimal.ONE) {
-            val formatted = rate.setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
-            "1 $fromName = $formatted $toName"
+        val rateBackward = runCatching {
+            convertBetween(BigDecimal.ONE, toUnitIndex, fromUnitIndex, state.selectedCategory)
+        }.getOrNull() ?: return ""
+
+        // Use the larger factor as the canonical multiplier so both lines show a clean number:
+        // forward uses × if factor >= 1, otherwise shows ÷ canonical; backward is the mirror.
+        return if (rateForward >= BigDecimal.ONE) {
+            val fwd = rateForward.setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+            "$fromName → $toName:  × $fwd\n$toName → $fromName:  ÷ $fwd"
         } else {
-            val inverse = runCatching {
-                convertBetween(BigDecimal.ONE, toUnitIndex, fromUnitIndex, state.selectedCategory)
-            }.getOrNull() ?: return ""
-            val formatted = inverse.setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
-            "1 $toName = $formatted $fromName"
+            val bwd = rateBackward.setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+            "$fromName → $toName:  ÷ $bwd\n$toName → $fromName:  × $bwd"
         }
     }
 

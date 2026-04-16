@@ -37,7 +37,10 @@ import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -118,7 +121,7 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
                 HorizontalDivider()
             }
 
-            // Conversion hint
+            // Conversion hint — two lines: "unitA → unitB: × factor" and reverse
             val hint = vm.getConversionHint(state)
             if (hint.isNotEmpty()) {
                 Text(
@@ -126,9 +129,10 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.End,
+                    maxLines = 2,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
                 )
             }
 
@@ -222,6 +226,11 @@ private fun ConverterRowItem(
                         text = value,
                         selection = TextRange(cursorPos.coerceIn(0, value.length))
                     )
+                    val interactionSourceExpr = remember { MutableInteractionSource() }
+                    val isFocusedExpr by interactionSourceExpr.collectIsFocusedAsState()
+                    LaunchedEffect(isFocusedExpr) {
+                        if (isFocusedExpr) keyboardController?.hide()
+                    }
                     BasicTextField(
                         value = tfv,
                         onValueChange = { newTfv ->
@@ -230,16 +239,17 @@ private fun ConverterRowItem(
                             }
                             keyboardController?.hide()
                         },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        textStyle = MaterialTheme.typography.titleLarge.copy(
                             textAlign = TextAlign.End,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         singleLine = true,
+                        interactionSource = interactionSourceExpr,
                         modifier = Modifier.weight(1f)
                     )
                     Text(
                         text = " = ",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
@@ -257,6 +267,11 @@ private fun ConverterRowItem(
                     text = displayValue,
                     selection = TextRange(cursorPos.coerceIn(0, displayValue.length))
                 )
+                val interactionSourceVal = remember { MutableInteractionSource() }
+                val isFocusedVal by interactionSourceVal.collectIsFocusedAsState()
+                LaunchedEffect(isFocusedVal) {
+                    if (isFocusedVal) keyboardController?.hide()
+                }
                 BasicTextField(
                     value = tfv,
                     onValueChange = { newTfv ->
@@ -271,6 +286,7 @@ private fun ConverterRowItem(
                                 else MaterialTheme.colorScheme.onSurface
                     ),
                     singleLine = true,
+                    interactionSource = interactionSourceVal,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
