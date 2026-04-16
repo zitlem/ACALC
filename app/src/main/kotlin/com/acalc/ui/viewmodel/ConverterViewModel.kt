@@ -24,7 +24,8 @@ import java.math.RoundingMode
 
 data class ConverterRow(
     val unitIndex: Int,
-    val value: String
+    val value: String,
+    val cursorPos: Int = 0
 )
 
 data class ConverterState(
@@ -139,6 +140,18 @@ class ConverterViewModel : ViewModel() {
         _state.value = _state.value.copy(activeRowIndex = index)
     }
 
+    /** Called by the UI when the user taps to reposition the cursor in any row.
+     *  Also activates that row so numpad input follows the tapped field. */
+    fun onCursorMoved(rowIndex: Int, newPos: Int) {
+        val state = _state.value
+        val rows = state.rows.toMutableList()
+        if (rowIndex !in rows.indices) return
+        val value = rows[rowIndex].value
+        val clamped = newPos.coerceIn(0, value.length)
+        rows[rowIndex] = rows[rowIndex].copy(cursorPos = clamped)
+        _state.value = state.copy(rows = rows, activeRowIndex = rowIndex)
+    }
+
     // MARK: — Numpad input
 
     fun onNumpadKey(key: String) {
@@ -146,39 +159,77 @@ class ConverterViewModel : ViewModel() {
         val activeIndex = state.activeRowIndex
         val rows = state.rows.toMutableList()
         val current = rows[activeIndex].value
+        val cursor = rows[activeIndex].cursorPos.coerceIn(0, current.length)
 
+        var newCursor = cursor
         val newValue = when (key) {
-            "⌫"  -> if (current.isEmpty()) "" else current.dropLast(1)
-            "C"   -> ""
-            "."   -> when {
-                // Only add decimal to the last number in the expression
-                current.isEmpty() -> "0."
-                // After an operator, start a new decimal number: "0.2-" + "." → "0.2-0."
-                current.last() in "+-*/" -> "${current}0."
-                // Mid-number: only allow if the current last number has no decimal yet
-                current.last().isDigit() && !currentLastNumber(current).contains('.') -> "$current."
-                else -> current
+            "⌫"  -> {
+                if (cursor == 0 || current.isEmpty()) {
+                    current
+                } else {
+                    newCursor = cursor - 1
+                    current.removeRange(cursor - 1, cursor)
+                }
+            }
+            "C"   -> {
+                newCursor = 0
+                ""
+            }
+            "."   -> {
+                // Determine the token at cursor position
+                val tokenAtCursor = currentLastNumberBefore(current, cursor)
+                if (tokenAtCursor.contains('.')) {
+                    current
+                } else {
+                    val charBefore = if (cursor > 0) current[cursor - 1] else null
+                    val insertion = if (charBefore == null || charBefore in "+-*/") "0." else "."
+                    newCursor = cursor + insertion.length
+                    current.insert(cursor, insertion)
+                }
             }
             "±"   -> when {
-                current.isEmpty() -> "-"
-                current.startsWith("-") -> current.drop(1)
-                else -> "-$current"
+                current.isEmpty() -> { newCursor = 1; "-" }
+                current.startsWith("-") -> { newCursor = (cursor - 1).coerceAtLeast(0); current.drop(1) }
+                else -> { newCursor = cursor + 1; "-$current" }
             }
-            "×"   -> if (current.isEmpty() || current.last() in "+-*/") current else "$current*"
-            "÷"   -> if (current.isEmpty() || current.last() in "+-*/") current else "$current/"
-            "+", "-" -> when {
-                current.isEmpty() && key == "-" -> "-"
-                current.isEmpty() -> current
-                current.last() in "+-*/" -> current.dropLast(1) + key
-                else -> "$current$key"
+            "×"   -> {
+                val charBefore = if (cursor > 0) current[cursor - 1] else null
+                if (current.isEmpty() || charBefore != null && charBefore in "+-*/") current
+                else { newCursor = cursor + 1; current.insert(cursor, "*") }
+            }
+            "÷"   -> {
+                val charBefore = if (cursor > 0) current[cursor - 1] else null
+                if (current.isEmpty() || charBefore != null && charBefore in "+-*/") current
+                else { newCursor = cursor + 1; current.insert(cursor, "/") }
+            }
+            "+", "-" -> {
+                val charBefore = if (cursor > 0) current[cursor - 1] else null
+                when {
+                    current.isEmpty() && key == "-" -> { newCursor = 1; "-" }
+                    current.isEmpty() -> current
+                    charBefore != null && charBefore in "+-*/" -> {
+                        // Replace the operator immediately before cursor
+                        newCursor = cursor // cursor stays (replaced 1 char with 1 char)
+                        current.removeRange(cursor - 1, cursor).insert(cursor - 1, key)
+                    }
+                    else -> { newCursor = cursor + 1; current.insert(cursor, key) }
+                }
             }
             else  -> {
                 // digit key
-                if (current == "0") key else "$current$key"
+                val insertion = if (current == "0" && cursor == 1) {
+                    newCursor = 1
+                    key  // replace the lone "0"
+                } else {
+                    newCursor = cursor + key.length
+                    key
+                }
+                if (current == "0" && cursor == 1) insertion
+                else current.insert(cursor, insertion)
             }
         }
 
-        rows[activeIndex] = rows[activeIndex].copy(value = newValue)
+        rows[activeIndex] = rows[activeIndex].copy(value = newValue, cursorPos = newCursor)
 
         if (newValue.isEmpty()) {
             val cleared = rows.mapIndexed { i, r -> if (i == activeIndex) r else r.copy(value = "") }
@@ -254,7 +305,7 @@ class ConverterViewModel : ViewModel() {
         val activeIndex = state.activeRowIndex
         val rows = state.rows.toMutableList()
         val displayValue = formatConverted(BigDecimal(evaluated.toString()))
-        rows[activeIndex] = rows[activeIndex].copy(value = displayValue)
+        rows[activeIndex] = rows[activeIndex].copy(value = displayValue, cursorPos = displayValue.length)
         recomputeFrom(state, rows, activeIndex, BigDecimal(evaluated.toString()))
     }
 
@@ -322,7 +373,8 @@ class ConverterViewModel : ViewModel() {
             if (i == sourceIndex) r
             else {
                 val converted = convertBetween(value, sourceUnitIndex, r.unitIndex, state.selectedCategory)
-                r.copy(value = formatConverted(converted))
+                val newValue = formatConverted(converted)
+                r.copy(value = newValue, cursorPos = newValue.length)
             }
         }
         _state.value = state.copy(rows = finalRows)
@@ -357,4 +409,15 @@ class ConverterViewModel : ViewModel() {
         val idx = expr.indexOfLast { it in "+-*/" }
         return if (idx == -1) expr else expr.substring(idx + 1)
     }
+
+    /** Returns the numeric token in [expr] that ends at [pos] (for decimal-guard). */
+    private fun currentLastNumberBefore(expr: String, pos: Int): String {
+        val sub = expr.substring(0, pos)
+        val idx = sub.indexOfLast { it in "+-*/" }
+        return if (idx == -1) sub else sub.substring(idx + 1)
+    }
 }
+
+/** Inserts [s] into this string at position [index]. */
+private fun String.insert(index: Int, s: String): String =
+    substring(0, index) + s + substring(index)

@@ -16,7 +16,8 @@ import kotlin.math.floor
 data class CalculatorState(
     val expression: String = "",
     val result: String = "",
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val cursorPos: Int = 0
 )
 
 /** Persistence abstraction so CalculatorViewModel can be unit-tested without an Application. */
@@ -66,26 +67,39 @@ class CalculatorViewModel(
     // Raw expression string (no formatting). Kept in sync with _state.value.expression.
     private var expression = ""
 
+    // Cursor position within expression (index of insertion point, 0..expression.length).
+    private var cursorPos = 0
+
     // True after a successful onEquals() or onPercent() — tracks that the result is currently shown.
     private var resultShown = false
+
+    /** Called by the UI when the user taps to reposition the cursor. */
+    fun onCursorMoved(newPos: Int) {
+        cursorPos = newPos.coerceIn(0, expression.length)
+        // Only update cursorPos in state — no expression/result change.
+        _state.value = _state.value.copy(cursorPos = cursorPos)
+    }
 
     // MARK: — Input handlers
 
     fun onDigit(digit: String) {
         if (resultShown) {
             expression = ""
+            cursorPos = 0
             resultShown = false
         }
-        expression += digit
+        expression = expression.insert(cursorPos, digit)
+        cursorPos += digit.length
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
     }
 
     fun onOperator(op: String) {
         if (expression.isEmpty()) {
             if (op == "-") {
                 expression = "-"
-                _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+                cursorPos = 1
+                _state.value = _state.value.copy(expression = expression, result = "", isError = false, cursorPos = cursorPos)
             }
             return
         }
@@ -94,26 +108,33 @@ class CalculatorViewModel(
             resultShown = false
         }
 
-        val lastChar = expression.last()
-        if (lastChar in "+-×÷") {
-            expression = expression.dropLast(1) + op
+        // If the character immediately before the cursor is an operator, replace it.
+        val charBefore = if (cursorPos > 0) expression[cursorPos - 1] else null
+        if (charBefore != null && charBefore in "+-×÷") {
+            expression = expression.removeRange(cursorPos - 1, cursorPos).insert(cursorPos - 1, op)
+            // cursorPos stays the same (replaced one char with one char)
         } else {
-            expression += op
+            expression = expression.insert(cursorPos, op)
+            cursorPos += op.length
         }
-        _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+        _state.value = _state.value.copy(expression = expression, result = "", isError = false, cursorPos = cursorPos)
     }
 
     fun onDecimal() {
-        val currentToken = currentToken()
-        if (currentToken.contains(".")) return
-        if (expression.isEmpty() || expression.last() in "+-×÷") {
-            expression += "0."
+        val tokenAtCursor = currentTokenAt(cursorPos)
+        if (tokenAtCursor.contains(".")) return
+        val insertion: String
+        val charBefore = if (cursorPos > 0) expression[cursorPos - 1] else null
+        if (expression.isEmpty() || charBefore == null || charBefore in "+-×÷") {
+            insertion = "0."
         } else {
-            expression += "."
+            insertion = "."
         }
+        expression = expression.insert(cursorPos, insertion)
+        cursorPos += insertion.length
         resultShown = false
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
     }
 
     fun onClear() {
@@ -121,16 +142,18 @@ class CalculatorViewModel(
             tryComputeFormatted()?.let { saveHistory(expression, it) }
         }
         expression = ""
+        cursorPos = 0
         resultShown = false
         _state.value = CalculatorState()
     }
 
     fun onBackspace() {
-        if (expression.isEmpty()) return
-        expression = expression.dropLast(1)
+        if (cursorPos == 0) return
+        expression = expression.removeRange(cursorPos - 1, cursorPos)
+        cursorPos -= 1
         resultShown = false
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
     }
 
     fun onPercent() {
@@ -138,11 +161,13 @@ class CalculatorViewModel(
         if (token.isEmpty()) return
         val originalExpression = expression
         expression += "/100"
+        cursorPos = expression.length
         val result = compute()
         if (result != null) {
             val formatted = formatResult(result)
             expression = result.toBigDecimal().stripTrailingZeros().toPlainString()
-            _state.value = _state.value.copy(expression = expression, result = formatted, isError = false)
+            cursorPos = expression.length
+            _state.value = _state.value.copy(expression = expression, result = formatted, isError = false, cursorPos = cursorPos)
             resultShown = true
             saveHistory(originalExpression, formatted)
         } else {
@@ -158,32 +183,36 @@ class CalculatorViewModel(
                               key == "π" || key == "φ"
             if (startsFresh) {
                 expression = key
+                cursorPos = key.length
                 resultShown = false
                 val live = tryComputeFormatted()
-                _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
+                _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
                 return
             }
             resultShown = false
         }
-        expression += key
+        expression = expression.insert(cursorPos, key)
+        cursorPos += key.length
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
     }
 
     // Smart ( ) — adds ( if parens are balanced, ) if there's an unclosed one
     fun onParen() {
         if (resultShown) {
             expression = "("
+            cursorPos = 1
             resultShown = false
-            _state.value = _state.value.copy(expression = expression, result = "", isError = false)
+            _state.value = _state.value.copy(expression = expression, result = "", isError = false, cursorPos = cursorPos)
             return
         }
         val open = expression.count { it == '(' }
         val close = expression.count { it == ')' }
         val toAdd = if (open > close) ")" else "("
-        expression += toAdd
+        expression = expression.insert(cursorPos, toAdd)
+        cursorPos += 1
         val live = tryComputeFormatted()
-        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false)
+        _state.value = _state.value.copy(expression = expression, result = live ?: "", isError = false, cursorPos = cursorPos)
     }
 
     fun onTabLeave() {
@@ -199,7 +228,8 @@ class CalculatorViewModel(
         if (result != null) {
             val formatted = formatResult(result)
             expression = result.toBigDecimal().stripTrailingZeros().toPlainString()
-            _state.value = _state.value.copy(expression = expression, result = formatted, isError = false)
+            cursorPos = expression.length
+            _state.value = _state.value.copy(expression = expression, result = formatted, isError = false, cursorPos = cursorPos)
             resultShown = true
             saveHistory(originalExpression, formatted)
         } else {
@@ -228,6 +258,13 @@ class CalculatorViewModel(
         return if (lastOpIndex == -1) expression else expression.substring(lastOpIndex + 1)
     }
 
+    /** Returns the numeric token in [expr] that contains position [pos] (used for decimal guard). */
+    private fun currentTokenAt(pos: Int): String {
+        val sub = expression.substring(0, pos)
+        val lastOpIndex = sub.indexOfLast { it in "+-×÷" }
+        return if (lastOpIndex == -1) sub else sub.substring(lastOpIndex + 1)
+    }
+
     private fun tryComputeFormatted(): String? {
         val result = compute() ?: return null
         return formatResult(result)
@@ -251,3 +288,7 @@ class CalculatorViewModel(
         }
     }
 }
+
+/** Inserts [s] into this string at position [index]. */
+private fun String.insert(index: Int, s: String): String =
+    substring(0, index) + s + substring(index)

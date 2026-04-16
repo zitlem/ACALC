@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.History
@@ -35,6 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -66,6 +70,7 @@ fun CalculatorScreen(modifier: Modifier = Modifier) {
         onBackspace = vm::onBackspace,
         onPercent = vm::onPercent,
         onEquals = vm::onEquals,
+        onCursorMoved = vm::onCursorMoved,
         onShowHistory = { showHistory = true },
         modifier = modifier
     )
@@ -91,14 +96,17 @@ private fun CalculatorContent(
     onBackspace: () -> Unit,
     onPercent: () -> Unit,
     onEquals: () -> Unit,
+    onCursorMoved: (Int) -> Unit,
     onShowHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         DisplayArea(
             expression = state.expression,
+            cursorPos = state.cursorPos,
             result = state.result,
             isError = state.isError,
+            onCursorMoved = onCursorMoved,
             modifier = Modifier.weight(1f)
         )
         ButtonGrid(
@@ -120,10 +128,24 @@ private fun CalculatorContent(
 @Composable
 private fun DisplayArea(
     expression: String,
+    cursorPos: Int,
     result: String,
     isError: Boolean,
+    onCursorMoved: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val textStyle = MaterialTheme.typography.headlineMedium.copy(
+        textAlign = TextAlign.End,
+        color = MaterialTheme.colorScheme.onSurface
+    )
+
+    // Keep TextFieldValue in sync with ViewModel state. The selection is a collapsed cursor at cursorPos.
+    val tfv = TextFieldValue(
+        text = expression,
+        selection = TextRange(cursorPos.coerceIn(0, expression.length))
+    )
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -131,14 +153,22 @@ private fun DisplayArea(
     ) {
         Spacer(Modifier.weight(1f))
 
-        Text(
-            text = expression,
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth()
+        // BasicTextField renders the blinking cursor. readOnly=false so taps can reposition it.
+        // We hide the system keyboard immediately on focus.
+        BasicTextField(
+            value = tfv,
+            onValueChange = { newTfv ->
+                // Accept cursor/selection changes from taps, but reject any text changes
+                // (all text edits come through the numpad buttons via the ViewModel).
+                if (newTfv.text == expression) {
+                    onCursorMoved(newTfv.selection.start)
+                }
+                keyboardController?.hide()
+            },
+            textStyle = textStyle,
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
         )
 
         Text(
@@ -189,7 +219,7 @@ private fun ButtonGrid(
             verticalAlignment = Alignment.CenterVertically
         ) {
             StripBtn(label = "•••", onClick = { showAdvancedMenu = true })
-            StripBtn(label = "⌫",  onClick = onBackspace)
+            BackspaceStripBtn(onClick = onBackspace)
         }
 
         // Row 1: C, ( ), %, /
@@ -299,6 +329,22 @@ private fun StripBtn(
             .height(36.dp)
     ) {
         Text(label, style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun BackspaceStripBtn(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier
+            .padding(horizontal = 4.dp)
+            .height(52.dp)
+    ) {
+        Text("⌫", style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.primary)
     }
 }
@@ -466,6 +512,7 @@ private fun CalculatorContentPreview() {
             onBackspace = {},
             onPercent = {},
             onEquals = {},
+            onCursorMoved = {},
             onShowHistory = {}
         )
     }

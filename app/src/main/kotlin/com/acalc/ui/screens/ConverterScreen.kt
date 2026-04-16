@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Check
@@ -44,6 +45,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -100,10 +104,12 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
                 ConverterRowItem(
                     unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
                     value = row.value,
+                    cursorPos = row.cursorPos,
                     isActive = index == state.activeRowIndex,
                     liveResult = if (index == state.activeRowIndex) liveResult else null,
                     onTap = { vm.onRowActivated(index) },
                     onUnitTap = { unitPickerRowIndex = index },
+                    onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -156,14 +162,17 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
 private fun ConverterRowItem(
     unitName: String,
     value: String,
+    cursorPos: Int,
     isActive: Boolean,
     liveResult: String?,
     onTap: () -> Unit,
     onUnitTap: () -> Unit,
+    onCursorMoved: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val activeColor = MaterialTheme.colorScheme.primary
     val bgColor = if (isActive) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Row(
         modifier = modifier
@@ -202,39 +211,66 @@ private fun ConverterRowItem(
                 .padding(horizontal = 10.dp),
             contentAlignment = Alignment.CenterEnd
         ) {
-            if (liveResult != null) {
-                Column(
-                    horizontalAlignment = Alignment.End,
+            if (liveResult != null && liveResult != value) {
+                // Expression mode: user typed something like "25+10" which evaluates to "35".
+                // Show everything on one line: [expression] = [result]
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
+                    val tfv = TextFieldValue(
                         text = value,
+                        selection = TextRange(cursorPos.coerceIn(0, value.length))
+                    )
+                    BasicTextField(
+                        value = tfv,
+                        onValueChange = { newTfv ->
+                            if (newTfv.text == value) {
+                                onCursorMoved(newTfv.selection.start)
+                            }
+                            keyboardController?.hide()
+                        },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            textAlign = TextAlign.End,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = " = ",
                         style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.End,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth()
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = liveResult,
                         style = MaterialTheme.typography.titleLarge,
-                        textAlign = TextAlign.End,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth()
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             } else {
-                Text(
-                    text = if (value.isEmpty() && isActive) "0" else value,
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.End,
-                    color = if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
-                            else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                // Single-line value display (active or inactive).
+                val displayValue = if (value.isEmpty() && isActive) "" else value
+                val tfv = TextFieldValue(
+                    text = displayValue,
+                    selection = TextRange(cursorPos.coerceIn(0, displayValue.length))
+                )
+                BasicTextField(
+                    value = tfv,
+                    onValueChange = { newTfv ->
+                        if (newTfv.text == displayValue) {
+                            onCursorMoved(newTfv.selection.start)
+                        }
+                        keyboardController?.hide()
+                    },
+                    textStyle = MaterialTheme.typography.titleLarge.copy(
+                        textAlign = TextAlign.End,
+                        color = if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                                else MaterialTheme.colorScheme.onSurface
+                    ),
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
