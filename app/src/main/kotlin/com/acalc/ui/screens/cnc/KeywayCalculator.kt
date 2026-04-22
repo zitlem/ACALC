@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -70,23 +71,38 @@ private fun lookupInch(shaftIn: Double): KeyRow? =
     else ASME_INCH.firstOrNull { (maxEx, _) -> shaftIn < maxEx }?.second
 
 private fun lookupMetric(shaftMm: Double): KeyRow? =
-    if (shaftMm <= 6.0) null  // ISO 773 lower bound = 6 mm (exclusive)
+    if (shaftMm <= 6.0) null
     else ISO_METRIC.firstOrNull { (maxEx, _) -> shaftMm < maxEx }?.second
 
 // ─── Composable ───────────────────────────────────────────────────────────────
 
 @Composable
 fun KeywayCalculator(modifier: Modifier = Modifier) {
-    var metric by remember { mutableStateOf(false) }
-    var shaftDia by remember { mutableStateOf("") }
+    var metric       by remember { mutableStateOf(false) }
+    var shaftDia     by remember { mutableStateOf("") }
+    var keyWidthStr  by remember { mutableStateOf("") }
+    var keyHeightStr by remember { mutableStateOf("") }
+    var hubOdStr     by remember { mutableStateOf("") }
 
-    val shaftVal = shaftDia.toDoubleOrNull()
-    val keyRow = shaftVal?.let { if (metric) lookupMetric(it) else lookupInch(it) }
+    val shaftVal  = shaftDia.toDoubleOrNull()
+    val keyRow    = shaftVal?.let { if (metric) lookupMetric(it) else lookupInch(it) }
     val outOfRange = shaftVal != null && shaftVal > 0.0 && keyRow == null
 
     val unit = if (metric) "mm" else "in"
     val spec = if (metric) "ISO 773" else "ASME B17.1"
-    val fmt = if (metric) "%.2f" else "%.4f"
+    val fmt  = if (metric) "%.2f" else "%.4f"
+
+    // Computed values from user-entered key dimensions
+    val kh         = keyHeightStr.toDoubleOrNull()
+    val depthShaft = kh?.let { it / 2.0 }
+    val depthHub   = kh?.let { it / 2.0 }
+
+    val shaftPlusKey = if (shaftVal != null && kh != null && depthShaft != null)
+        shaftVal / 2.0 + (kh - depthShaft) else null
+
+    val hubOd = hubOdStr.toDoubleOrNull()
+    val hubKeyDepthFromOD = if (hubOd != null && shaftVal != null && depthHub != null)
+        (hubOd - shaftVal) / 2.0 + depthHub else null
 
     Column(
         modifier = modifier
@@ -97,13 +113,13 @@ fun KeywayCalculator(modifier: Modifier = Modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = !metric,
-                onClick = { metric = false; shaftDia = "" },
-                label = { Text("Inch (ASME B17.1)") }
+                onClick  = { metric = false; shaftDia = "" },
+                label    = { Text("Inch (ASME B17.1)") }
             )
             FilterChip(
                 selected = metric,
-                onClick = { metric = true; shaftDia = "" },
-                label = { Text("Metric (ISO 773)") }
+                onClick  = { metric = true; shaftDia = "" },
+                label    = { Text("Metric (ISO 773)") }
             )
         }
 
@@ -124,20 +140,77 @@ fun KeywayCalculator(modifier: Modifier = Modifier) {
             )
         }
 
+        // Standard lookup reference (read-only tiles, shown when lookup succeeds)
         if (keyRow != null) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                KeyResultTile("Key Width ($unit)", fmt.format(keyRow.w), Modifier.weight(1f))
-                KeyResultTile("Key Height ($unit)", fmt.format(keyRow.h), Modifier.weight(1f))
+            Text(
+                "$spec standard for this shaft:",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                KeyResultTile("Std Key Width ($unit)",  fmt.format(keyRow.w),  Modifier.weight(1f))
+                KeyResultTile("Std Key Height ($unit)", fmt.format(keyRow.h),  Modifier.weight(1f))
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                KeyResultTile("Depth in Shaft ($unit)", fmt.format(keyRow.ds), Modifier.weight(1f))
-                KeyResultTile("Depth in Hub ($unit)",   fmt.format(keyRow.dh), Modifier.weight(1f))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                KeyResultTile("Std Depth/Shaft ($unit)", fmt.format(keyRow.ds), Modifier.weight(1f))
+                KeyResultTile("Std Depth/Hub ($unit)",   fmt.format(keyRow.dh), Modifier.weight(1f))
+            }
+        }
+
+        HorizontalDivider()
+
+        // User key dimensions (always editable, persist independently of lookup)
+        Text(
+            "Key dimensions (enter to calculate):",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = keyWidthStr,
+                onValueChange = { keyWidthStr = it },
+                label = { Text("Key Width ($unit)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = keyHeightStr,
+                onValueChange = { keyHeightStr = it },
+                label = { Text("Key Height ($unit)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        OutlinedTextField(
+            value = hubOdStr,
+            onValueChange = { hubOdStr = it },
+            label = { Text("Hub OD ($unit, optional)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Calculated results from user key dimensions
+        if (depthShaft != null && shaftVal != null) {
+            HorizontalDivider()
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                KeyResultTile("Depth in Shaft ($unit)", fmt.format(depthShaft), Modifier.weight(1f))
+                KeyResultTile("Depth in Hub ($unit)",   fmt.format(depthHub!!),  Modifier.weight(1f))
+            }
+            if (shaftPlusKey != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    KeyResultTile(
+                        "Shaft + Key ($unit)",
+                        fmt.format(shaftPlusKey),
+                        if (hubKeyDepthFromOD != null) Modifier.weight(1f) else Modifier.fillMaxWidth()
+                    )
+                    if (hubKeyDepthFromOD != null) {
+                        KeyResultTile("Hub OD to Keyway ($unit)", fmt.format(hubKeyDepthFromOD), Modifier.weight(1f))
+                    }
+                }
             }
         }
     }
@@ -152,7 +225,8 @@ private fun KeyResultTile(label: String, value: String, modifier: Modifier = Mod
         tonalElevation = 1.dp
     ) {
         Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(label, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
     }

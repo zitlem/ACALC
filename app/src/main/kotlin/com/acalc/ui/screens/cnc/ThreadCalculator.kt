@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 // ─── Thread reference data ────────────────────────────────────────────────────
 
@@ -119,46 +121,111 @@ fun ThreadCalculator(modifier: Modifier = Modifier) {
 
 @Composable
 private fun ThreadCalculate(modifier: Modifier = Modifier) {
-    var metric by remember { mutableStateOf(false) }
-    var major by remember { mutableStateOf("") }
-    var tpiOrPitch by remember { mutableStateOf("") }
+    var isExternal    by remember { mutableStateOf(true) }
+    var threadClass   by remember { mutableStateOf("2") }
+    var metric        by remember { mutableStateOf(false) }
+    var major         by remember { mutableStateOf("") }
+    var tpiOrPitch    by remember { mutableStateOf("") }
+    var useCustomWire by remember { mutableStateOf(false) }
+    var customWireStr by remember { mutableStateOf("") }
 
-    val d = major.toDoubleOrNull()
-    val tpiPitch = tpiOrPitch.toDoubleOrNull()
+    val d         = major.toDoubleOrNull()
+    val tpiPitch  = tpiOrPitch.toDoubleOrNull()
+    val unit      = if (metric) "mm" else "in"
 
     data class Results(
-        val tapDrill: Double,
-        val pitchDia: Double,
+        val tapDrill: Double?,
+        val tapDrillLabel: String?,
+        val maxPD: Double,
+        val minPD: Double,
         val minorDia: Double,
-        val wire: Double,
-        val measOverWires: Double,
-        val tapDrillLabel: String
+        val wireDia: Double,
+        val mow: Double,
+        val classLabel: String
     )
 
-    val results: Results? = if (d != null && tpiPitch != null && tpiPitch > 0) {
+    val results: Results? = if (d != null && tpiPitch != null && tpiPitch > 0.0) {
         if (!metric) {
-            val tpi = tpiPitch
+            val tpi   = tpiPitch
             val pitch = 1.0 / tpi
-            val tapDrill = d - 0.9743 / tpi
-            val pitchDia = d - 0.6495 / tpi
+            val basicPD  = d - 0.6495 / tpi
             val minorDia = d - 1.2990 / tpi
-            val wire = 0.57735 / tpi
-            val mow = pitchDia + 3.0 * wire - 0.866 * pitch
-            val drillName = nearestInchDrill(tapDrill)
-            val tapDrillLabel = if (drillName != null) "%.4f ($drillName)".format(tapDrill) else "%.4f".format(tapDrill)
-            Results(tapDrill, pitchDia, minorDia, wire, mow, tapDrillLabel)
+            val le       = minOf(d, 9.0 * pitch)
+
+            // ANSI B1.1 base tolerance (class 2A formula)
+            val td2A = 0.0015 * d.pow(1.0 / 3.0) +
+                       0.0015 * sqrt(le) +
+                       0.015  * pitch.pow(2.0 / 3.0)
+
+            val (maxPD, minPD, classLabel) = if (isExternal) {
+                when (threadClass) {
+                    "3" -> Triple(basicPD, basicPD - 0.75 * td2A, "3A")
+                    "2" -> {
+                        val es = 0.225 * td2A
+                        Triple(basicPD - es, basicPD - es - td2A, "2A")
+                    }
+                    else -> {
+                        val es = 0.225 * td2A
+                        Triple(basicPD - es, basicPD - es - 1.5 * td2A, "1A")
+                    }
+                }
+            } else {
+                when (threadClass) {
+                    "3" -> Triple(basicPD + td2A,        basicPD, "3B")
+                    "2" -> Triple(basicPD + 1.3 * td2A,  basicPD, "2B")
+                    else -> Triple(basicPD + 1.95 * td2A, basicPD, "1B")
+                }
+            }
+
+            val bestWire = 0.57735 / tpi
+            val wireDia  = if (useCustomWire) customWireStr.toDoubleOrNull() ?: bestWire else bestWire
+            val mow      = basicPD + 3.0 * wireDia - 0.866 * pitch
+
+            val tapDrill: Double?
+            val tapDrillLabel: String?
+            if (!isExternal) {
+                val td = d - 0.9743 / tpi
+                val drillName = nearestInchDrill(td)
+                tapDrill = td
+                tapDrillLabel = if (drillName != null) "%.4f ($drillName)".format(td) else "%.4f".format(td)
+            } else {
+                tapDrill = null
+                tapDrillLabel = null
+            }
+
+            Results(tapDrill, tapDrillLabel, maxPD, minPD, minorDia, wireDia, mow, classLabel)
         } else {
-            val pitch = tpiPitch
-            val tapDrill = d - pitch
-            val pitchDia = d - 0.6495 * pitch
+            val pitch    = tpiPitch
+            val basicPD  = d - 0.6495 * pitch
             val minorDia = d - 1.2990 * pitch
-            val wire = 0.57735 * pitch
-            val mow = pitchDia + 3.0 * wire - 0.866 * pitch
-            Results(tapDrill, pitchDia, minorDia, wire, mow, "%.4f".format(tapDrill))
+
+            // Simplified ISO 965 6g / 6H approximation
+            val td = 0.026 * pitch.pow(0.667)
+            val (maxPD, minPD, classLabel) = if (isExternal) {
+                val es = 0.017 * pitch.pow(0.667)
+                Triple(basicPD - es, basicPD - es - td, "6g")
+            } else {
+                Triple(basicPD + td, basicPD, "6H")
+            }
+
+            val bestWire = 0.57735 * pitch
+            val wireDia  = if (useCustomWire) customWireStr.toDoubleOrNull() ?: bestWire else bestWire
+            val mow      = basicPD + 3.0 * wireDia - 0.866 * pitch
+
+            val tapDrill: Double?
+            val tapDrillLabel: String?
+            if (!isExternal) {
+                val td2 = d - pitch
+                tapDrill = td2
+                tapDrillLabel = "%.3f mm".format(td2)
+            } else {
+                tapDrill = null
+                tapDrillLabel = null
+            }
+
+            Results(tapDrill, tapDrillLabel, maxPD, minPD, minorDia, wireDia, mow, classLabel)
         }
     } else null
-
-    val unit = if (metric) "mm" else "in"
 
     Column(
         modifier = modifier
@@ -166,16 +233,46 @@ private fun ThreadCalculate(modifier: Modifier = Modifier) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // External / Internal
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = isExternal,
+                onClick = { isExternal = true; threadClass = "2" },
+                label = { Text("External") }
+            )
+            FilterChip(
+                selected = !isExternal,
+                onClick = { isExternal = false; threadClass = "2" },
+                label = { Text("Internal") }
+            )
+        }
+
+        // Thread class (only for inch — metric uses fixed 6g/6H)
+        if (!metric) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val classes = if (isExternal) listOf("1" to "1A", "2" to "2A", "3" to "3A")
+                              else            listOf("1" to "1B", "2" to "2B", "3" to "3B")
+                classes.forEach { (key, label) ->
+                    FilterChip(
+                        selected = threadClass == key,
+                        onClick  = { threadClass = key },
+                        label    = { Text(label) }
+                    )
+                }
+            }
+        }
+
+        // Inch / Metric
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = !metric,
-                onClick = { metric = false; major = ""; tpiOrPitch = "" },
-                label = { Text("Inch (TPI)") }
+                onClick  = { metric = false; major = ""; tpiOrPitch = "" },
+                label    = { Text("Inch (TPI)") }
             )
             FilterChip(
                 selected = metric,
-                onClick = { metric = true; major = ""; tpiOrPitch = "" },
-                label = { Text("Metric (pitch)") }
+                onClick  = { metric = true; major = ""; tpiOrPitch = "" },
+                label    = { Text("Metric (pitch)") }
             )
         }
 
@@ -197,29 +294,70 @@ private fun ThreadCalculate(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth()
         )
 
+        // Wire diameter toggle
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = !useCustomWire,
+                onClick  = { useCustomWire = false },
+                label    = { Text("Best Wire") }
+            )
+            FilterChip(
+                selected = useCustomWire,
+                onClick  = { useCustomWire = true },
+                label    = { Text("Custom Wire") }
+            )
+        }
+        if (useCustomWire) {
+            OutlinedTextField(
+                value = customWireStr,
+                onValueChange = { customWireStr = it },
+                label = { Text("Wire Diameter ($unit)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         if (results != null) {
             HorizontalDivider()
-            // Tap Drill — label already formatted with drill name
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                tonalElevation = 1.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                    Text("Tap Drill", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(results.tapDrillLabel, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+
+            // Class label
+            Text(
+                "Class ${results.classLabel}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Tap drill (internal only)
+            if (results.tapDrillLabel != null) {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 1.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                        Text("Tap Drill", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(results.tapDrillLabel, style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                ThreadResultTile("Pitch Diameter ($unit)", "%.4f".format(results.pitchDia), Modifier.weight(1f))
-                ThreadResultTile("Minor Diameter ($unit)", "%.4f".format(results.minorDia), Modifier.weight(1f))
+                ThreadResultTile("Max PD ($unit)", "%.4f".format(results.maxPD), Modifier.weight(1f))
+                ThreadResultTile("Min PD ($unit)", "%.4f".format(results.minPD), Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                ThreadResultTile("Best Wire ($unit)", "%.4f".format(results.wire), Modifier.weight(1f))
-                ThreadResultTile("Meas. Over Wires ($unit)", "%.4f".format(results.measOverWires), Modifier.weight(1f))
+                ThreadResultTile("Minor Dia ($unit)", "%.4f".format(results.minorDia), Modifier.weight(1f))
+                ThreadResultTile("Wire Ø ($unit)", "%.4f".format(results.wireDia), Modifier.weight(1f))
             }
+            ThreadResultTile(
+                "Meas. Over Wires ($unit)",
+                "%.4f".format(results.mow),
+                Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -233,7 +371,8 @@ private fun ThreadResultTile(label: String, value: String, modifier: Modifier = 
         tonalElevation = 1.dp
     ) {
         Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(label, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
     }
@@ -251,7 +390,6 @@ private fun ThreadChart(modifier: Modifier = Modifier) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Chart type toggle
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = chart == "UNC",    onClick = { chart = "UNC" },    label = { Text("UNC") })
             FilterChip(selected = chart == "UNF",    onClick = { chart = "UNF" },    label = { Text("UNF") })
@@ -262,36 +400,34 @@ private fun ThreadChart(modifier: Modifier = Modifier) {
 
         if (chart == "UNC" || chart == "UNF") {
             val data = if (chart == "UNC") UNC else UNF
-            // Header
             Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Size",       style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.5f))
-                Text("TPI",        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("Tap Drill",  style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("Dec. (in)",  style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Size",      style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.5f))
+                Text("TPI",       style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Tap Drill", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Dec. (in)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             }
             HorizontalDivider()
             data.forEach { row ->
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                    Text(row.size,              style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1.5f))
-                    Text("${row.tpi}",          style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text(row.drill,             style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(row.size,               style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1.5f))
+                    Text("${row.tpi}",           style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(row.drill,              style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Text("%.4f".format(row.dec), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                 }
                 HorizontalDivider()
             }
         } else {
-            // Metric
             Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Size",         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("Pitch (mm)",   style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Size",           style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Pitch (mm)",     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Text("Tap Drill (mm)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             }
             HorizontalDivider()
             METRIC_COARSE.forEach { row ->
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                    Text(row.size,                  style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text("%.2f".format(row.pitch),  style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text("%.2f".format(row.drill),  style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(row.size,                 style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text("%.2f".format(row.pitch), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text("%.2f".format(row.drill), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                 }
                 HorizontalDivider()
             }
