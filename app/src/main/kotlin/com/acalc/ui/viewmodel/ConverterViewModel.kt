@@ -72,7 +72,6 @@ private object NoOpConverterStorage : ConverterStorage {
 }
 
 private fun defaultRowsFor(category: UnitCategory): List<ConverterRow> = when (category) {
-    UnitCategory.TRIANGLE    -> emptyList()
     UnitCategory.LENGTH      -> listOf(
         ConverterRow(LengthUnit.MM.ordinal, ""),
         ConverterRow(LengthUnit.CM.ordinal, ""),
@@ -400,7 +399,6 @@ class ConverterViewModel(
     // MARK: — UI helpers
 
     fun getUnitsForCategory(category: UnitCategory): List<Pair<String, String>> = when (category) {
-        UnitCategory.TRIANGLE    -> emptyList()
         UnitCategory.LENGTH      -> LengthUnit.entries.map { it.name to it.displayName }
         UnitCategory.WEIGHT      -> WeightUnit.entries.map { it.name to it.displayName }
         UnitCategory.VOLUME      -> VolumeUnit.entries.map { it.name to it.displayName }
@@ -478,7 +476,6 @@ class ConverterViewModel(
         toIndex: Int,
         category: UnitCategory
     ): BigDecimal = when (category) {
-        UnitCategory.TRIANGLE    -> value
         UnitCategory.LENGTH      -> engine.convert(value, LengthUnit.entries[fromIndex], LengthUnit.entries[toIndex])
         UnitCategory.WEIGHT      -> engine.convert(value, WeightUnit.entries[fromIndex], WeightUnit.entries[toIndex])
         UnitCategory.VOLUME      -> engine.convert(value, VolumeUnit.entries[fromIndex], VolumeUnit.entries[toIndex])
