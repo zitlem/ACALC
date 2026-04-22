@@ -63,7 +63,6 @@ import com.acalc.domain.UnitCategory
 import com.acalc.ui.viewmodel.ConverterViewModel
 
 private val CATEGORY_LABELS = mapOf(
-    UnitCategory.TRIANGLE    to "Triangle",
     UnitCategory.LENGTH      to "Length",
     UnitCategory.WEIGHT      to "Weight",
     UnitCategory.VOLUME      to "Volume",
@@ -104,86 +103,82 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        if (state.selectedCategory == UnitCategory.TRIANGLE) {
-            TriangleCalculatorContent(modifier = Modifier.weight(1f).fillMaxWidth())
-        } else {
-            val liveResult = vm.getLiveResult(state)
-            val hint = vm.getConversionHint(state)
+        val liveResult = vm.getLiveResult(state)
+        val hint = vm.getConversionHint(state)
 
-            if (isLandscape) {
-                // Landscape: rows + hint on left, numpad on right
-                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                        state.rows.forEachIndexed { index, row ->
-                            ConverterRowItem(
-                                unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
-                                value = row.value,
-                                cursorPos = row.cursorPos,
-                                isActive = index == state.activeRowIndex,
-                                liveResult = if (index == state.activeRowIndex) liveResult else null,
-                                onTap = { vm.onRowActivated(index) },
-                                onUnitTap = { unitPickerRowIndex = index },
-                                onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
-                                modifier = Modifier.fillMaxWidth().weight(1f)
-                            )
-                            HorizontalDivider()
-                        }
-                        if (hint.isNotEmpty()) {
-                            Text(
-                                text = hint,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.End,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
-                            )
-                        }
+        if (isLandscape) {
+            // Landscape: rows + hint on left, numpad on right
+            Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                    state.rows.forEachIndexed { index, row ->
+                        ConverterRowItem(
+                            unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
+                            value = row.value,
+                            cursorPos = row.cursorPos,
+                            isActive = index == state.activeRowIndex,
+                            liveResult = if (index == state.activeRowIndex) liveResult else null,
+                            onTap = { vm.onRowActivated(index) },
+                            onUnitTap = { unitPickerRowIndex = index },
+                            onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
+                            modifier = Modifier.fillMaxWidth().weight(1f)
+                        )
+                        HorizontalDivider()
                     }
-                    androidx.compose.material3.VerticalDivider()
-                    ConverterNumpad(
-                        onKey = vm::onNumpadKey,
-                        onEnter = vm::onEnter,
-                        onFocusNext = vm::onFocusNextRow,
-                        fillHeight = true,
-                        modifier = Modifier.weight(1f).fillMaxHeight()
-                    )
+                    if (hint.isNotEmpty()) {
+                        Text(
+                            text = hint,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
+                        )
+                    }
                 }
-            } else {
-                // Portrait: rows stacked, hint, numpad below
-                state.rows.forEachIndexed { index, row ->
-                    ConverterRowItem(
-                        unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
-                        value = row.value,
-                        cursorPos = row.cursorPos,
-                        isActive = index == state.activeRowIndex,
-                        liveResult = if (index == state.activeRowIndex) liveResult else null,
-                        onTap = { vm.onRowActivated(index) },
-                        onUnitTap = { unitPickerRowIndex = index },
-                        onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
-                        modifier = Modifier.fillMaxWidth().weight(1f).heightIn(max = 80.dp)
-                    )
-                    HorizontalDivider()
-                }
-                if (hint.isNotEmpty()) {
-                    Text(
-                        text = hint,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.End,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                }
-                HorizontalDivider()
+                androidx.compose.material3.VerticalDivider()
                 ConverterNumpad(
                     onKey = vm::onNumpadKey,
                     onEnter = vm::onEnter,
                     onFocusNext = vm::onFocusNextRow,
-                    modifier = Modifier.fillMaxWidth()
+                    fillHeight = true,
+                    modifier = Modifier.weight(1f).fillMaxHeight()
                 )
             }
+        } else {
+            // Portrait: rows stacked, hint, numpad below
+            state.rows.forEachIndexed { index, row ->
+                ConverterRowItem(
+                    unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
+                    value = row.value,
+                    cursorPos = row.cursorPos,
+                    isActive = index == state.activeRowIndex,
+                    liveResult = if (index == state.activeRowIndex) liveResult else null,
+                    onTap = { vm.onRowActivated(index) },
+                    onUnitTap = { unitPickerRowIndex = index },
+                    onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
+                    modifier = Modifier.fillMaxWidth().weight(1f).heightIn(max = 80.dp)
+                )
+                HorizontalDivider()
+            }
+            if (hint.isNotEmpty()) {
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
+            HorizontalDivider()
+            ConverterNumpad(
+                onKey = vm::onNumpadKey,
+                onEnter = vm::onEnter,
+                onFocusNext = vm::onFocusNextRow,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 

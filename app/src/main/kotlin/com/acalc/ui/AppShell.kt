@@ -20,6 +20,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.acalc.ui.screens.CalculatorScreen
+import com.acalc.ui.screens.CncScreen
 import com.acalc.ui.screens.ConverterScreen
 import com.acalc.ui.viewmodel.CalculatorViewModel
 import kotlinx.serialization.Serializable
@@ -32,6 +33,9 @@ data object CalculatorRoute : TabRoute
 @Serializable
 data object ConverterRoute : TabRoute
 
+@Serializable
+data object CncRoute : TabRoute
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppShell() {
@@ -39,13 +43,22 @@ fun AppShell() {
     val prefs = remember { context.getSharedPreferences("acalc_prefs", Context.MODE_PRIVATE) }
     val app = context.applicationContext as android.app.Application
     val calcVm = viewModel<CalculatorViewModel> { CalculatorViewModel.create(app) }
+    val startIndex = prefs.getInt("last_tab_index", 0)
     val startRoute: TabRoute = remember {
-        if (prefs.getBoolean("last_tab_converter", false)) ConverterRoute else CalculatorRoute
+        when (startIndex) {
+            1 -> ConverterRoute
+            2 -> CncRoute
+            else -> CalculatorRoute
+        }
     }
 
     val backStack = rememberNavBackStack(startRoute)
     val currentRoute = backStack.last()
-    val selectedTabIndex = if (currentRoute is ConverterRoute) 1 else 0
+    val selectedTabIndex = when (currentRoute) {
+        is ConverterRoute -> 1
+        is CncRoute -> 2
+        else -> 0
+    }
 
     Scaffold(
         // Prevent Scaffold from double-counting the status bar — PrimaryTabRow handles it below
@@ -59,7 +72,7 @@ fun AppShell() {
                     selected = selectedTabIndex == 0,
                     onClick = {
                         if (currentRoute !is CalculatorRoute) {
-                            prefs.edit().putBoolean("last_tab_converter", false).apply()
+                            prefs.edit().putInt("last_tab_index", 0).apply()
                             backStack.clear()
                             backStack.add(CalculatorRoute)
                         }
@@ -71,12 +84,24 @@ fun AppShell() {
                     onClick = {
                         if (currentRoute !is ConverterRoute) {
                             calcVm.onTabLeave()
-                            prefs.edit().putBoolean("last_tab_converter", true).apply()
+                            prefs.edit().putInt("last_tab_index", 1).apply()
                             backStack.clear()
                             backStack.add(ConverterRoute)
                         }
                     },
                     text = { Text("Converter") }
+                )
+                Tab(
+                    selected = selectedTabIndex == 2,
+                    onClick = {
+                        if (currentRoute !is CncRoute) {
+                            calcVm.onTabLeave()
+                            prefs.edit().putInt("last_tab_index", 2).apply()
+                            backStack.clear()
+                            backStack.add(CncRoute)
+                        }
+                    },
+                    text = { Text("CNC") }
                 )
             }
         }
@@ -90,6 +115,9 @@ fun AppShell() {
                 }
                 entry<ConverterRoute> {
                     ConverterScreen(modifier = Modifier.padding(innerPadding).navigationBarsPadding())
+                }
+                entry<CncRoute> {
+                    CncScreen(modifier = Modifier.padding(innerPadding).navigationBarsPadding())
                 }
             }
         )
