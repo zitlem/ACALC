@@ -42,7 +42,6 @@ import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
-import kotlin.math.floor
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -377,14 +376,6 @@ private fun fmtD(v: Double): String {
     }
 }
 
-// Full precision for results table
-private fun fmtFull(v: Double): String {
-    if (v.isNaN() || v.isInfinite()) return "—"
-    if (v == floor(v) && v in Long.MIN_VALUE.toDouble()..Long.MAX_VALUE.toDouble())
-        return v.toLong().toString()
-    return "%.6f".format(v).trimEnd('0').trimEnd('.')
-}
-
 // ─── Math solvers ─────────────────────────────────────────────────────────────
 
 private fun solveRightTriangle(
@@ -494,6 +485,15 @@ private fun solveAnyTriangle(
     }
 
     fillThird()
+
+    // Second pass: the block above fills sides before it derives the remaining angles, so any
+    // side whose angle only became known in that step (or in the fillThird above) is still
+    // missing. Without this, a solvable SSA case such as a=5, b=10, B=90° was rejected outright.
+    if (ratio != null && ratio > 0) {
+        if (aV == null && A != null) aV = ratio * sin(A!!)
+        if (bV == null && B != null) bV = ratio * sin(B!!)
+        if (cV == null && C != null) cV = ratio * sin(C!!)
+    }
 
     if (aV == null || bV == null || cV == null || A == null || B == null || C == null) return null
     if (aV!! <= 0 || bV!! <= 0 || cV!! <= 0) return null

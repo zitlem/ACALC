@@ -213,6 +213,153 @@ class TriangleCalculatorTest {
         compose.assertShows("Not enough data or invalid values")
     }
 
+    // ── Remaining right-triangle solver paths ──
+
+    @Test
+    fun `solves the other leg from side b and the hypotenuse`() {
+        compose.enterText("Side b", "4")
+        compose.enterText("Hyp. c", "5")
+        compose.tap("Calculate")
+        compose.assertShows("3")
+        compose.assertShows("90")
+    }
+
+    @Test
+    fun `solves from side a and angle A`() {
+        compose.enterText("Side a", "3")
+        compose.enterText("Angle A°", "36.87")
+        compose.tap("Calculate")
+        compose.assertShows("4")   // b = a / tan(A)
+        compose.assertShows("5")   // c = a / sin(A)
+    }
+
+    @Test
+    fun `solves from side a and angle B`() {
+        compose.enterText("Side a", "3")
+        compose.enterText("Angle B°", "53.13")
+        compose.tap("Calculate")
+        compose.assertShows("4")   // b = a × tan(B)
+        compose.assertShows("5")
+    }
+
+    @Test
+    fun `solves from side b and angle A`() {
+        compose.enterText("Side b", "4")
+        compose.enterText("Angle A°", "36.87")
+        compose.tap("Calculate")
+        compose.assertShows("3")   // a = b × tan(A)
+        compose.assertShows("5")
+    }
+
+    @Test
+    fun `solves from the hypotenuse and angle B`() {
+        compose.enterText("Hyp. c", "10")
+        compose.enterText("Angle B°", "60")
+        compose.tap("Calculate")
+        compose.assertShows("5")     // a = c × cos(B)
+        compose.assertShows("8.66")  // b = c × sin(B)
+    }
+
+    // ── Remaining any-triangle solver paths ──
+
+    @Test
+    fun `fills in the missing angle from A and C`() {
+        compose.tap("Any Triangle")
+        compose.enterText("Side a", "10")
+        compose.enterText("Angle A°", "30")
+        compose.enterText("Angle C°", "90")
+        compose.tap("Calculate")
+        compose.assertShows("60")   // B = 180 − A − C
+        compose.assertShows("20")   // c = a / sin(A)
+    }
+
+    @Test
+    fun `solves side-angle-side around angle B`() {
+        compose.tap("Any Triangle")
+        compose.enterText("Side a", "3")
+        compose.enterText("Side c", "4")
+        compose.enterText("Angle B°", "90")
+        compose.tap("Calculate")
+        compose.assertShows("5")   // b from the law of cosines
+        compose.assertShows("6")   // area
+    }
+
+    @Test
+    fun `uses side b for the law of sines when side a is unknown`() {
+        compose.tap("Any Triangle")
+        compose.enterText("Side b", "10")
+        compose.enterText("Angle B°", "30")
+        compose.enterText("Angle C°", "60")
+        compose.tap("Calculate")
+        compose.assertShows("90")     // A = 180 − B − C
+        compose.assertShows("20")     // a = b / sin(B)
+        compose.assertShows("17.32")  // c
+    }
+
+    /**
+     * Regression: two sides plus the angle opposite the longer one. The remaining side can only
+     * be computed after that last angle is derived, and the solver used to give up before then,
+     * rejecting a perfectly solvable triangle as "Not enough data".
+     */
+    @Test
+    fun `derives an angle from two sides and a non-included angle`() {
+        compose.tap("Any Triangle")
+        compose.enterText("Side a", "5")
+        compose.enterText("Side b", "10")
+        compose.enterText("Angle B°", "90")
+        compose.tap("Calculate")
+        compose.assertShows("30")     // A = asin(a / ratio)
+        compose.assertShows("60")     // C = 180 − A − B
+        compose.assertShows("8.66")   // c, filled in by the second law-of-sines pass
+        compose.assertDoesNotShow("Not enough data or invalid values")
+    }
+
+    /**
+     * The SSA case is genuinely ambiguous when the known angle is opposite the shorter side —
+     * both an acute and an obtuse triangle satisfy the input. `asin` returns the acute one, so
+     * that is the solution reported. Pinned so the choice is a decision, not an accident.
+     */
+    @Test
+    fun `the ambiguous SSA case reports the acute solution`() {
+        compose.tap("Any Triangle")
+        compose.enterText("Side a", "10")
+        compose.enterText("Side b", "5")
+        compose.enterText("Angle A°", "30")
+        compose.tap("Calculate")
+        compose.assertShows("30")
+        compose.assertShows("14.48")   // B = asin(5/20), the acute solution
+        compose.assertShows("135.5")   // C = 180 − 30 − 14.48
+        compose.assertShows("14.01")   // c
+    }
+
+    // ── Result formatting across magnitudes ──
+
+    @Test
+    fun `large results are shown without decimals`() {
+        compose.enterText("Side a", "2000")
+        compose.enterText("Side b", "3000")
+        compose.tap("Calculate")
+        compose.assertShows("3606")   // hypotenuse, ≥1000 → no decimals
+        compose.assertShows("8606")   // perimeter
+    }
+
+    @Test
+    fun `mid-range results keep one decimal`() {
+        compose.enterText("Side a", "200")
+        compose.enterText("Side b", "300")
+        compose.tap("Calculate")
+        compose.assertShows("360.6")   // hypotenuse, 100–1000 → one decimal
+    }
+
+    @Test
+    fun `small results keep four decimals`() {
+        compose.enterText("Side a", "0.3")
+        compose.enterText("Side b", "0.4")
+        compose.tap("Calculate")
+        compose.assertShows("0.5")    // hypotenuse
+        compose.assertShows("0.06")   // area, <1 → four decimals, trimmed
+    }
+
     // ── Mode switching ──
 
     @Test
