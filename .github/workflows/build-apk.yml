@@ -15,19 +15,16 @@ on:
         type: boolean
         default: true
       publish:
-        description: 'Attach the APK to a GitHub Release (release variant only)'
+        description: 'Publish the APK as a GitHub Release (release variant only)'
         type: boolean
-        default: false
-      tag:
-        description: 'Release tag, e.g. v1.3 — must match versionName in build.gradle.kts'
-        type: string
+        default: true
       title:
         description: 'Short release title, e.g. "Converter touch target fix" (optional)'
         type: string
       draft:
-        description: 'Create the release as a draft so notes can be written before publishing'
+        description: 'Create as a draft instead of publishing straight away'
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: write
@@ -41,33 +38,35 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      # Fail before spending five minutes on a build that cannot be published.
+      # The tag is derived from versionName in build.gradle.kts, which stays the source of truth
+      # for the version as it has been for every release so far. Deriving it makes a mismatched
+      # tag impossible rather than merely detectable.
+      - name: Work out the release tag
+        id: version
+        run: |
+          version_name=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          if [ -z "$version_name" ]; then
+            echo "::error::could not read versionName from app/build.gradle.kts"
+            exit 1
+          fi
+          echo "tag=v${version_name}" >> "$GITHUB_OUTPUT"
+          echo "versionName ${version_name} -> tag v${version_name}"
+
+      # Checked before the build so a run that cannot publish fails in seconds, not five minutes.
       - name: Check publish inputs
         if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ inputs.variant }}" != "release" ]; then
             echo "::error::publish requires variant=release — every published release so far ships app-release.apk"
             exit 1
           fi
-          if [ -z "${{ inputs.tag }}" ]; then
-            echo "::error::publish requires a tag, e.g. v1.3"
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::release ${{ steps.version.outputs.tag }} already exists."
+            echo "::error::Bump versionCode and versionName in app/build.gradle.kts first."
             exit 1
           fi
-          # build.gradle.kts stays the source of truth for the version, as it has been for every
-          # release so far; this only stops a v1.3 tag shipping an APK that reports itself as 1.2.
-          version_name=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-          expected="v${version_name}"
-          if [ "${{ inputs.tag }}" != "$expected" ]; then
-            echo "::error::tag ${{ inputs.tag }} does not match versionName ${version_name} (expected ${expected})."
-            echo "::error::Bump versionName and versionCode in app/build.gradle.kts first."
-            exit 1
-          fi
-          if gh release view "${{ inputs.tag }}" >/dev/null 2>&1; then
-            echo "::error::release ${{ inputs.tag }} already exists"
-            exit 1
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -136,22 +135,26 @@ jobs:
           path: app/build/reports/tests/
           if-no-files-found: warn
 
-      # Matches the existing releases: tag vX.Y, title "vX.Y — short description"
-      # (or just the tag when no title is given), and one asset named app-release.apk.
+      # Matches the existing releases: tag vX.Y, title "vX.Y — short description" (or just the tag
+      # when no title is given), and one asset named app-release.apk. Always a full release —
+      # --prerelease is never passed — and marked latest.
       - name: Publish release
         if: inputs.publish
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          TITLE: ${{ inputs.title }}
         run: |
-          name="${{ inputs.tag }}"
-          if [ -n "${{ inputs.title }}" ]; then
-            name="${{ inputs.tag }} — ${{ inputs.title }}"
+          name="$TAG"
+          if [ -n "$TITLE" ]; then
+            name="$TAG — $TITLE"
           fi
-          args=(--title "$name" --notes "")
+          # --generate-notes rather than an empty body, since this publishes straight away.
+          args=(--title "$name" --generate-notes --latest)
           if [ "${{ inputs.draft }}" = "true" ]; then
             args+=(--draft)
           fi
-          gh release create "${{ inputs.tag }}" \
+          gh release create "$TAG" \
             app/build/outputs/apk/release/app-release.apk \
             "${args[@]}"
-          echo "Release ${{ inputs.tag }} created with app-release.apk attached." >> "$GITHUB_STEP_SUMMARY"
+          echo "Release $TAG published with app-release.apk attached." >> "$GITHUB_STEP_SUMMARY"
