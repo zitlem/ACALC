@@ -23,6 +23,12 @@ import org.junit.Assert.assertTrue
 /** Phone-sized screen so portrait layouts lay out the way they do on a real device. */
 const val PHONE_QUALIFIERS = "w411dp-h891dp"
 
+/** The same phone rotated — drives the separate `if (isLandscape)` layouts. */
+const val LANDSCAPE_QUALIFIERS = "w891dp-h411dp-land"
+
+/** A short screen, so the converter rows fall back to their compact display modes. */
+const val SHORT_PHONE_QUALIFIERS = "w411dp-h540dp"
+
 /** Matches tappable controls (buttons, chips, tabs) while excluding editable text fields. */
 private fun isTappableControl() = SemanticsMatcher("is a tappable control") { node ->
     node.config.contains(SemanticsActions.OnClick) && !node.config.contains(SemanticsActions.SetText)
