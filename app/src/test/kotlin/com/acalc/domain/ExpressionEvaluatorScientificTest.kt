@@ -161,20 +161,27 @@ class ExpressionEvaluatorScientificTest {
         assertEquals(1.0, evaluator.evaluate("ln(e)")!!, delta)
     }
 
-    /**
-     * KNOWN DEFECT — pinned so a fix flips this test rather than going unnoticed.
-     *
-     * The calculator's "log₂" key inserts `log2(`, but the parser reads a function name with
-     * `while (input[pos].isLetter())`, so it stops at the digit and never sees the `(`. The name
-     * `log2` therefore falls through to the unknown-constant branch and the whole expression
-     * evaluates to null — the log₂ button cannot produce a result.
-     *
-     * Fix: also accept digits after the first letter when reading a function name.
-     * `applyFunction` already has a working `"log2"` branch waiting for it.
-     */
+    /** Regression: function names may contain digits, so the log₂ key can evaluate. */
     @Test
-    fun `log2 is unreachable because function names cannot contain digits`() {
-        assertNull(evaluator.evaluate("log2(8)"))
+    fun `log2 of eight is three`() {
+        assertEquals(3.0, evaluator.evaluate("log2(8)")!!, delta)
+    }
+
+    @Test
+    fun `log2 of one is zero`() {
+        assertEquals(0.0, evaluator.evaluate("log2(1)")!!, delta)
+    }
+
+    @Test
+    fun `log2 composes with arithmetic`() {
+        assertEquals(20.0, evaluator.evaluate("log2(1024)*2")!!, delta)
+    }
+
+    /** Digits in a name must not turn an unknown name into a silent success. */
+    @Test
+    fun `an unknown name containing digits still returns null`() {
+        assertNull(evaluator.evaluate("log3(8)"))
+        assertNull(evaluator.evaluate("e2"))
     }
 
     @Test

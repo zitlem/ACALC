@@ -67,10 +67,13 @@ class ExpressionEvaluator {
             // Single-char constants
             if (pos < input.length && input[pos] == 'π') { pos++; return Math.PI }
             if (pos < input.length && input[pos] == 'φ') { pos++; return (1.0 + Math.sqrt(5.0)) / 2.0 }
-            // Named functions and constants (e, sin, cos, …)
+            // Named functions and constants (e, sin, cos, log2, …).
+            // A name starts with a letter but may contain digits after it — without that, log2(
+            // stops at the '2', never sees the '(', and falls through to the unknown-constant
+            // branch, making the log₂ key impossible to evaluate.
             if (pos < input.length && input[pos].isLetter()) {
                 val nameStart = pos
-                while (pos < input.length && input[pos].isLetter()) pos++
+                while (pos < input.length && (input[pos].isLetter() || input[pos].isDigit())) pos++
                 val name = input.substring(nameStart, pos)
                 if (pos < input.length && input[pos] == '(') {
                     pos++ // consume '('

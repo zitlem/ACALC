@@ -173,6 +173,17 @@ class CalculatorScreenTest {
         compose.assertShows("0.5")
     }
 
+    /** Regression: the log₂ key inserts `log2(`, which the parser could not read at all. */
+    @Test
+    fun `the log base 2 key evaluates`() {
+        compose.tap("•••")
+        compose.tap("log₂")
+        tapAll("8")
+        compose.tap("( )")
+        compose.assertShows("log2(8)")
+        compose.assertShows("3")
+    }
+
     @Test
     fun `the pi constant evaluates`() {
         compose.tap("•••")
