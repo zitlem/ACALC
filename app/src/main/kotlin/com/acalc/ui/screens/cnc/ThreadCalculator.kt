@@ -100,10 +100,29 @@ private fun nearestInchDrill(decimal: Double): String? {
 
 // ─── Main composable ──────────────────────────────────────────────────────────
 
+/**
+ * Sub-tab state, held here rather than inside [ThreadCalculate] and [ThreadChart].
+ *
+ * The two sub-tabs are separate call sites in a `when (subTab)`, so a child leaving the
+ * composition would drop everything it remembered — visiting the chart used to wipe whatever
+ * had been typed into Calculate.
+ */
+private class ThreadState {
+    var isExternal    by mutableStateOf(true)
+    var threadClass   by mutableStateOf("2")
+    var metric        by mutableStateOf(false)
+    var major         by mutableStateOf("")
+    var tpiOrPitch    by mutableStateOf("")
+    var useCustomWire by mutableStateOf(false)
+    var customWireStr by mutableStateOf("")
+    var chart         by mutableStateOf("UNC")
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThreadCalculator(modifier: Modifier = Modifier) {
     var subTab by remember { mutableStateOf(0) }
+    val state = remember { ThreadState() }
 
     Column(modifier = modifier) {
         PrimaryTabRow(selectedTabIndex = subTab) {
@@ -111,8 +130,8 @@ fun ThreadCalculator(modifier: Modifier = Modifier) {
             Tab(selected = subTab == 1, onClick = { subTab = 1 }, text = { Text("Chart") })
         }
         when (subTab) {
-            0 -> ThreadCalculate(modifier = Modifier.fillMaxWidth())
-            1 -> ThreadChart(modifier = Modifier.fillMaxWidth())
+            0 -> ThreadCalculate(state, modifier = Modifier.fillMaxWidth())
+            1 -> ThreadChart(state, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -120,14 +139,14 @@ fun ThreadCalculator(modifier: Modifier = Modifier) {
 // ─── Calculate sub-tab ────────────────────────────────────────────────────────
 
 @Composable
-private fun ThreadCalculate(modifier: Modifier = Modifier) {
-    var isExternal    by remember { mutableStateOf(true) }
-    var threadClass   by remember { mutableStateOf("2") }
-    var metric        by remember { mutableStateOf(false) }
-    var major         by remember { mutableStateOf("") }
-    var tpiOrPitch    by remember { mutableStateOf("") }
-    var useCustomWire by remember { mutableStateOf(false) }
-    var customWireStr by remember { mutableStateOf("") }
+private fun ThreadCalculate(state: ThreadState, modifier: Modifier = Modifier) {
+    val isExternal    = state.isExternal
+    val threadClass   = state.threadClass
+    val metric        = state.metric
+    val major         = state.major
+    val tpiOrPitch    = state.tpiOrPitch
+    val useCustomWire = state.useCustomWire
+    val customWireStr = state.customWireStr
 
     val d         = major.toDoubleOrNull()
     val tpiPitch  = tpiOrPitch.toDoubleOrNull()
@@ -237,12 +256,12 @@ private fun ThreadCalculate(modifier: Modifier = Modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = isExternal,
-                onClick = { isExternal = true; threadClass = "2" },
+                onClick = { state.isExternal = true; state.threadClass = "2" },
                 label = { Text("External") }
             )
             FilterChip(
                 selected = !isExternal,
-                onClick = { isExternal = false; threadClass = "2" },
+                onClick = { state.isExternal = false; state.threadClass = "2" },
                 label = { Text("Internal") }
             )
         }
@@ -255,7 +274,7 @@ private fun ThreadCalculate(modifier: Modifier = Modifier) {
                 classes.forEach { (key, label) ->
                     FilterChip(
                         selected = threadClass == key,
-                        onClick  = { threadClass = key },
+                        onClick  = { state.threadClass = key },
                         label    = { Text(label) }
                     )
                 }
@@ -266,19 +285,19 @@ private fun ThreadCalculate(modifier: Modifier = Modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = !metric,
-                onClick  = { metric = false; major = ""; tpiOrPitch = "" },
+                onClick  = { state.metric = false; state.major = ""; state.tpiOrPitch = "" },
                 label    = { Text("Inch (TPI)") }
             )
             FilterChip(
                 selected = metric,
-                onClick  = { metric = true; major = ""; tpiOrPitch = "" },
+                onClick  = { state.metric = true; state.major = ""; state.tpiOrPitch = "" },
                 label    = { Text("Metric (pitch)") }
             )
         }
 
         OutlinedTextField(
             value = major,
-            onValueChange = { major = it },
+            onValueChange = { state.major = it },
             label = { Text("Major Diameter ($unit)") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -287,7 +306,7 @@ private fun ThreadCalculate(modifier: Modifier = Modifier) {
 
         OutlinedTextField(
             value = tpiOrPitch,
-            onValueChange = { tpiOrPitch = it },
+            onValueChange = { state.tpiOrPitch = it },
             label = { Text(if (metric) "Pitch (mm)" else "TPI (threads per inch)") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -298,19 +317,19 @@ private fun ThreadCalculate(modifier: Modifier = Modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = !useCustomWire,
-                onClick  = { useCustomWire = false },
+                onClick  = { state.useCustomWire = false },
                 label    = { Text("Best Wire") }
             )
             FilterChip(
                 selected = useCustomWire,
-                onClick  = { useCustomWire = true },
+                onClick  = { state.useCustomWire = true },
                 label    = { Text("Custom Wire") }
             )
         }
         if (useCustomWire) {
             OutlinedTextField(
                 value = customWireStr,
-                onValueChange = { customWireStr = it },
+                onValueChange = { state.customWireStr = it },
                 label = { Text("Wire Diameter ($unit)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -381,8 +400,8 @@ private fun ThreadResultTile(label: String, value: String, modifier: Modifier = 
 // ─── Chart sub-tab ────────────────────────────────────────────────────────────
 
 @Composable
-private fun ThreadChart(modifier: Modifier = Modifier) {
-    var chart by remember { mutableStateOf("UNC") }
+private fun ThreadChart(state: ThreadState, modifier: Modifier = Modifier) {
+    val chart = state.chart
 
     Column(
         modifier = modifier
@@ -391,9 +410,9 @@ private fun ThreadChart(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = chart == "UNC",    onClick = { chart = "UNC" },    label = { Text("UNC") })
-            FilterChip(selected = chart == "UNF",    onClick = { chart = "UNF" },    label = { Text("UNF") })
-            FilterChip(selected = chart == "Metric", onClick = { chart = "Metric" }, label = { Text("Metric") })
+            FilterChip(selected = chart == "UNC",    onClick = { state.chart = "UNC" },    label = { Text("UNC") })
+            FilterChip(selected = chart == "UNF",    onClick = { state.chart = "UNF" },    label = { Text("UNF") })
+            FilterChip(selected = chart == "Metric", onClick = { state.chart = "Metric" }, label = { Text("Metric") })
         }
 
         HorizontalDivider()

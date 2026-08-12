@@ -259,16 +259,42 @@ class ThreadCalculatorTest {
     }
 
     /**
-     * The two sub-tabs are separate call sites in a `when (subTab)`, so leaving Calculate drops
-     * its remembered state. Visiting the chart therefore discards whatever was typed. Pinned
-     * because it is easy to regress in either direction — hoisting the state would flip this test.
+     * Regression: the sub-tabs are separate call sites in a `when (subTab)`, so state remembered
+     * inside a child would be dropped when it leaves the composition. Visiting the chart used to
+     * wipe everything typed into Calculate.
      */
     @Test
-    fun `visiting the chart resets the calculate inputs`() {
+    fun `returning from the chart restores the calculate inputs`() {
         enterHalfInch13Tpi()
         compose.assertShows("Class 2A")
         compose.tap("Chart")
         compose.tap("Calculate")
-        compose.assertDoesNotShow("Class 2A")
+        compose.assertShows("Class 2A")
+        compose.assertShows("0.4001")   // minor diameter, recomputed from the restored inputs
+    }
+
+    @Test
+    fun `the chart remembers which table was selected`() {
+        compose.tap("Chart")
+        compose.tap("Metric")
+        compose.assertShows("M6")
+        compose.tap("Calculate")
+        compose.tap("Chart")
+        compose.assertShows("M6")
+        compose.assertDoesNotShow("1/4-20")
+    }
+
+    @Test
+    fun `internal and metric selections survive a trip to the chart`() {
+        compose.tap("Internal")
+        compose.tap("Metric (pitch)")
+        compose.enterText("Major Diameter", "6")
+        compose.enterText("Pitch (mm)", "1")
+        compose.assertShows("Class 6H")
+
+        compose.tap("Chart")
+        compose.tap("Calculate")
+        compose.assertShows("Class 6H")
+        compose.assertShows("5.000 mm")   // tap drill, still in metric internal mode
     }
 }
