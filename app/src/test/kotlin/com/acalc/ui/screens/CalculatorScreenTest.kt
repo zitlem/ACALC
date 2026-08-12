@@ -92,15 +92,15 @@ class CalculatorScreenTest {
     }
 
     /**
-     * KNOWN DEFECT, seen from the UI: after `=` the answer is on screen twice — once in the
-     * expression field, once on the result line — and for a sum that is not exactly representable
-     * in binary the two disagree. See CalculatorViewModelHistoryTest for the cause and the fix.
+     * Regression, seen from the UI: after `=` the answer is on screen twice — expression field
+     * and result line — and both must read the same. The expression field used to show the raw
+     * double, so this read 246.45600000000002 alongside 246.456.
      */
     @Test
-    fun `the expression and result lines disagree on a repeating decimal`() {
+    fun `the expression and result lines agree on an inexact sum`() {
         tapAll("1", "2", "3", "+", "1", "2", "3", ".", "4", "5", "6", "=")
-        compose.assertShows("246.456")               // result line — correct
-        compose.assertShows("246.45600000000002")    // expression field — float noise
+        compose.assertShows("246.456")
+        compose.assertDoesNotShow("246.45600000000002")
     }
 
     @Test

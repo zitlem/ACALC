@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.NumberFormat
 import kotlin.math.floor
 
@@ -183,7 +185,7 @@ class CalculatorViewModel(
         val result = compute()
         if (result != null) {
             val formatted = formatResult(result)
-            expression = result.toBigDecimal().stripTrailingZeros().toPlainString()
+            expression = resultAsExpression(result)
             cursorPos = expression.length
             emitState(_state.value.copy(expression = expression, result = formatted, isError = false, cursorPos = cursorPos))
             resultShown = true
@@ -245,7 +247,7 @@ class CalculatorViewModel(
         val result = compute()
         if (result != null) {
             val formatted = formatResult(result)
-            expression = result.toBigDecimal().stripTrailingZeros().toPlainString()
+            expression = resultAsExpression(result)
             cursorPos = expression.length
             emitState(_state.value.copy(expression = expression, result = formatted, isError = false, cursorPos = cursorPos))
             resultShown = true
@@ -294,6 +296,20 @@ class CalculatorViewModel(
         val sanitized = trimmed.replace("×", "*").replace("÷", "/").replace("x", "*")
         return evaluator.evaluate(sanitized)
     }
+
+    /**
+     * Renders [value] as the plain expression string the next calculation continues from.
+     *
+     * Rounded to the same 10 fraction digits [formatResult] displays: a sum like 123 + 123.456
+     * lands one ulp high in binary floating point (246.45600000000002), and writing that raw
+     * double back into the expression both contradicted the result line and carried the noise
+     * into every subsequent operation.
+     */
+    private fun resultAsExpression(value: Double): String =
+        BigDecimal.valueOf(value)
+            .setScale(10, RoundingMode.HALF_UP)
+            .stripTrailingZeros()
+            .toPlainString()
 
     private fun formatResult(value: Double): String {
         return if (value == floor(value) && !value.isInfinite() && value in Long.MIN_VALUE.toDouble()..Long.MAX_VALUE.toDouble()) {

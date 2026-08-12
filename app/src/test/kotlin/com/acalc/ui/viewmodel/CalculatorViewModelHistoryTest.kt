@@ -339,63 +339,73 @@ class CalculatorViewModelHistoryTest {
 
     // ── Float noise after equals ──
 
+    /** Types 123 + 123.456, whose exact binary sum lands one ulp high at 246.45600000000002. */
+    private fun enterInexactSum() {
+        vm.onDigit("1"); vm.onDigit("2"); vm.onDigit("3")
+        vm.onOperator("+")
+        vm.onDigit("1"); vm.onDigit("2"); vm.onDigit("3")
+        vm.onDecimal()
+        vm.onDigit("4"); vm.onDigit("5"); vm.onDigit("6")
+        vm.onEquals()
+    }
+
     /**
-     * KNOWN DEFECT — the answer is shown in two places and they disagree.
-     *
-     * `onEquals` formats the result line through [java.text.NumberFormat] capped at 10 fraction
-     * digits, but rewrites the expression line from the raw `Double`. When the sum is not exactly
-     * representable in binary (123 + 123.456 lands one ulp high at 246.45600000000002), the
-     * result line reads "246.456" while the expression line reads "246.45600000000002".
-     *
-     * It is not only cosmetic: the noisy value is what the next operation continues from, so the
-     * error is carried forward into every subsequent calculation.
-     *
-     * Fix: round the expression the same way the result is, e.g.
-     * `BigDecimal.valueOf(result).setScale(10, RoundingMode.HALF_UP).stripTrailingZeros()
-     *  .toPlainString()` — the same `formatConverted` treatment ConverterViewModel already uses.
-     * Applies to both `onEquals` and `onPercent`.
+     * Regression: the answer is on screen twice — expression field and result line — and both
+     * must read the same. The expression used to be written back from the raw `Double`, so a sum
+     * that is not exactly representable in binary showed 246.45600000000002 next to 246.456.
      */
     @Test
-    fun `equals leaves float noise in the expression while the result is rounded`() {
-        vm.onDigit("1"); vm.onDigit("2"); vm.onDigit("3")
-        vm.onOperator("+")
-        vm.onDigit("1"); vm.onDigit("2"); vm.onDigit("3")
-        vm.onDecimal()
-        vm.onDigit("4"); vm.onDigit("5"); vm.onDigit("6")
-        vm.onEquals()
-
+    fun `the expression and result agree on an inexact sum`() {
+        enterInexactSum()
         assertEquals("246.456", vm.state.value.result)
-        // Should be "246.456" too, but the raw double leaks through:
-        assertEquals("246.45600000000002", vm.state.value.expression)
+        assertEquals("246.456", vm.state.value.expression)
     }
 
-    /** The noisy expression is what the next operation builds on. */
+    /** Regression: the rounded value, not the noisy one, is what the next operation builds on. */
     @Test
-    fun `float noise is carried into the next calculation`() {
-        vm.onDigit("1"); vm.onDigit("2"); vm.onDigit("3")
-        vm.onOperator("+")
-        vm.onDigit("1"); vm.onDigit("2"); vm.onDigit("3")
-        vm.onDecimal()
-        vm.onDigit("4"); vm.onDigit("5"); vm.onDigit("6")
-        vm.onEquals()
+    fun `no float noise is carried into the next calculation`() {
+        enterInexactSum()
         vm.onOperator("+")
         vm.onDigit("1")
+        assertEquals("246.456+1", vm.state.value.expression)
 
-        assertEquals("246.45600000000002+1", vm.state.value.expression)
+        vm.onEquals()
+        assertEquals("247.456", vm.state.value.result)
+        assertEquals("247.456", vm.state.value.expression)
     }
 
-    /** History records the clean, formatted result, so only the live display is affected. */
     @Test
     fun `history keeps the rounded result`() {
-        vm.onDigit("1"); vm.onDigit("2"); vm.onDigit("3")
-        vm.onOperator("+")
-        vm.onDigit("1"); vm.onDigit("2"); vm.onDigit("3")
-        vm.onDecimal()
-        vm.onDigit("4"); vm.onDigit("5"); vm.onDigit("6")
-        vm.onEquals()
-
+        enterInexactSum()
         assertEquals("123+123.456", vm.history.value.first().expression)
         assertEquals("246.456", vm.history.value.first().result)
+    }
+
+    @Test
+    fun `percent also rounds the expression it writes back`() {
+        // 12.3% → 0.123, which is not exactly representable in binary
+        vm.onDigit("1"); vm.onDigit("2")
+        vm.onDecimal()
+        vm.onDigit("3")
+        vm.onPercent()
+        assertEquals(vm.state.value.result, vm.state.value.expression)
+        assertEquals("0.123", vm.state.value.expression)
+    }
+
+    @Test
+    fun `rounding does not disturb exact results`() {
+        vm.onDigit("6")
+        vm.onOperator("×")
+        vm.onDigit("7")
+        vm.onEquals()
+        assertEquals("42", vm.state.value.expression)
+
+        vm.onClear()
+        vm.onDigit("1")
+        vm.onOperator("/")
+        vm.onDigit("8")
+        vm.onEquals()
+        assertEquals("0.125", vm.state.value.expression)
     }
 
     @Test
