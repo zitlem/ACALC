@@ -121,7 +121,11 @@ tasks.register<JacocoReport>("coverageReport") {
             .map { fileTree(it) { exclude(excludes) } }
     )
     sourceDirectories.setFrom(files("src/main/kotlin"))
+    // Point at the exec file directly: scanning the whole build dir makes Gradle infer implicit
+    // dependencies on unrelated tasks (dexBuilderDebug, compressDebugAssets, …) and fail.
     executionData.setFrom(
-        fileTree(layout.buildDirectory).include("**/testDebugUnitTest.exec", "**/*.ec")
+        layout.buildDirectory.file(
+            "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+        )
     )
 }

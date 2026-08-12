@@ -494,11 +494,6 @@ class ConverterViewModel(
     private fun formatConverted(value: BigDecimal): String =
         value.setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
 
-    private fun currentLastNumber(expr: String): String {
-        val idx = expr.indexOfLast { it in "+-*/" }
-        return if (idx == -1) expr else expr.substring(idx + 1)
-    }
-
     /** Returns the numeric token in [expr] that ends at [pos] (for decimal-guard). */
     private fun currentLastNumberBefore(expr: String, pos: Int): String {
         val sub = expr.substring(0, pos)
