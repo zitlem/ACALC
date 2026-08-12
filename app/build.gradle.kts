@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    jacoco
 }
 
 android {
@@ -26,6 +27,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableUnitTestCoverage = true
+        }
         release {
             signingConfig    = signingConfigs.getByName("release")
             isMinifyEnabled  = false
@@ -77,4 +81,47 @@ dependencies {
 
     debugImplementation(libs.compose.ui.test.manifest)
     androidTestImplementation(libs.compose.ui.test.junit4)
+}
+
+/**
+ * `./gradlew coverageReport` → app/build/reports/jacoco/coverageReport/html/index.html
+ *
+ * Measures the JVM unit + Robolectric UI suites. Compose-generated synthetics and the
+ * placeholder data layer are excluded so the number reflects hand-written logic.
+ */
+// Robolectric loads classes through its own sandbox classloader; without these two settings
+// JaCoCo records nothing for anything the UI tests touch and every composable reads 0%.
+tasks.withType<Test>().configureEach {
+    extensions.configure<JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+
+tasks.register<JacocoReport>("coverageReport") {
+    dependsOn("testDebugUnitTest")
+    group = "verification"
+    description = "Coverage for the JVM unit and Robolectric UI tests"
+
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+    }
+
+    val excludes = listOf(
+        "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*",
+        "**/*Test*.*", "**/*\$\$serializer.*",
+        "**/ComposableSingletons*.*", "**/*_Factory.*", "**/*Preview*.*",
+    )
+
+    // AGP 9 emits Kotlin classes under intermediates/built_in_kotlinc, not tmp/kotlin-classes.
+    classDirectories.setFrom(
+        layout.buildDirectory
+            .dir("intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes")
+            .map { fileTree(it) { exclude(excludes) } }
+    )
+    sourceDirectories.setFrom(files("src/main/kotlin"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory).include("**/testDebugUnitTest.exec", "**/*.ec")
+    )
 }
