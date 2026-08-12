@@ -386,7 +386,18 @@ private fun ConverterRowItem(
                     ),
                     singleLine = true,
                     interactionSource = interactionSourceVal,
-                    modifier = Modifier.fillMaxWidth()
+                    // Fill the row so the whole box is tappable. Sized to the text alone, the
+                    // field was a ~36dp strip floating in a ~123dp row, leaving most of the row
+                    // dead: a tap there activated the row but never focused the field, so no
+                    // cursor appeared and it read as an ignored tap. decorationBox keeps the
+                    // value centred vertically and aligned to the end.
+                    modifier = Modifier.fillMaxSize(),
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.CenterEnd
+                        ) { innerTextField() }
+                    }
                 )
             }
         }
