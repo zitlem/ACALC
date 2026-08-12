@@ -332,21 +332,6 @@ class ConverterViewModel(
         recomputeFrom(state, rows, activeIndex, BigDecimal(evaluated.toString()))
     }
 
-    // MARK: — Swap top two rows (unit + value together, values stay consistent)
-
-    fun onSwap() {
-        val state = _state.value
-        if (state.rows.size < 2) return
-        val rows = state.rows.toMutableList()
-        val tmp = rows[0]; rows[0] = rows[1]; rows[1] = tmp
-        val newActive = when (state.activeRowIndex) {
-            0    -> 1
-            1    -> 0
-            else -> state.activeRowIndex
-        }
-        setState(state.copy(rows = rows, activeRowIndex = newActive))
-    }
-
     // MARK: — Unit selection
 
     fun onUnitChanged(rowIndex: Int, unitIndex: Int) {
@@ -368,13 +353,7 @@ class ConverterViewModel(
         onExprCalcCommit(activeValue)
     }
 
-    fun onFocusPrevRow() {
-        val s = _state.value
-        if (s.rows.isEmpty()) return
-        val prev = (s.activeRowIndex - 1 + s.rows.size) % s.rows.size
-        setState(s.copy(activeRowIndex = prev))
-    }
-
+    /** Advances to the next row, wrapping at the end — the numpad's ↓ key. */
     fun onFocusNextRow() {
         val s = _state.value
         if (s.rows.isEmpty()) return

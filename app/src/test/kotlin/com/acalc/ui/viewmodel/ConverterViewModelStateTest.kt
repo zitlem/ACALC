@@ -111,25 +111,6 @@ class ConverterViewModelStateTest {
     }
 
     @Test
-    fun `swap keeps the two rows numerically consistent`() {
-        type("1000")
-        val before = vm.state.value.rows.map { it.unitIndex to it.value }
-        vm.onSwap()
-        val after = vm.state.value.rows.map { it.unitIndex to it.value }
-        assertEquals(before[1], after[0])
-        assertEquals(before[0], after[1])
-    }
-
-    @Test
-    fun `swap moves the active row with it`() {
-        assertEquals(0, vm.state.value.activeRowIndex)
-        vm.onSwap()
-        assertEquals(1, vm.state.value.activeRowIndex)
-        vm.onSwap()
-        assertEquals(0, vm.state.value.activeRowIndex)
-    }
-
-    @Test
     fun `negative temperature propagates to the other scales`() {
         vm.onCategorySelected(UnitCategory.TEMPERATURE)
         vm.onNumpadKey("±")
@@ -313,16 +294,24 @@ class ConverterViewModelStateTest {
     // ── Focus movement ──
 
     @Test
-    fun `focus next wraps around the rows`() {
+    fun `focus next steps through each row in turn`() {
+        val count = vm.state.value.rows.size
+        for (expected in 1 until count) {
+            vm.onFocusNextRow()
+            assertEquals(expected, vm.state.value.activeRowIndex)
+        }
+    }
+
+    /** Wrapping is what makes a separate "previous row" key unnecessary. */
+    @Test
+    fun `focus next wraps around to the first row`() {
         val count = vm.state.value.rows.size
         repeat(count) { vm.onFocusNextRow() }
         assertEquals(0, vm.state.value.activeRowIndex)
-    }
 
-    @Test
-    fun `focus previous wraps backwards from the first row`() {
-        vm.onFocusPrevRow()
-        assertEquals(vm.state.value.rows.size - 1, vm.state.value.activeRowIndex)
+        // And the last row is reachable by going forwards.
+        repeat(count - 1) { vm.onFocusNextRow() }
+        assertEquals(count - 1, vm.state.value.activeRowIndex)
     }
 
     // ── Hints and unit lists ──

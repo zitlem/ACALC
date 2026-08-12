@@ -142,18 +142,6 @@ class ConverterViewModelTest {
         assertEquals("-", viewModel.state.value.rows[0].value)
     }
 
-    // Swap top two rows
-    @Test
-    fun test_swap_swapsFirstTwoRows() {
-        val state = viewModel.state.value
-        val unit0 = state.rows[0].unitIndex
-        val unit1 = state.rows[1].unitIndex
-        viewModel.onSwap()
-        val after = viewModel.state.value
-        assertEquals(unit1, after.rows[0].unitIndex)
-        assertEquals(unit0, after.rows[1].unitIndex)
-    }
-
     // getUnitsForCategory returns correct counts
     @Test
     fun test_getUnitsForCategory_lengthCount() {
