@@ -40,6 +40,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    testOptions {
+        // Robolectric needs real resources + a merged manifest to inflate the Compose host activity.
+        unitTests.isIncludeAndroidResources = true
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
@@ -61,6 +67,13 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    // Compose UI tests run on the JVM via Robolectric — no emulator required.
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.compose.ui.test.manifest)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     debugImplementation(libs.compose.ui.test.manifest)
     androidTestImplementation(libs.compose.ui.test.junit4)
