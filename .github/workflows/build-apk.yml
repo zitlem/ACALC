@@ -27,7 +27,8 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: write   # create releases
+  actions: write    # delete the APK artifact once it is on the release
 
 jobs:
   build:
@@ -134,6 +135,7 @@ jobs:
           name: test-reports
           path: app/build/reports/tests/
           if-no-files-found: warn
+          retention-days: 14
 
       # Matches the existing releases: tag vX.Y, title "vX.Y — short description" (or just the tag
       # when no title is given), and one asset named app-release.apk. Always a full release —
@@ -158,3 +160,24 @@ jobs:
             app/build/outputs/apk/release/app-release.apk \
             "${args[@]}"
           echo "Release $TAG published with app-release.apk attached." >> "$GITHUB_STEP_SUMMARY"
+
+      # The APK is on the release now, so the artifact copy is duplicate storage. It is uploaded
+      # before this point rather than skipped, so a publish that fails still leaves the build
+      # downloadable instead of throwing away five minutes of work.
+      - name: Remove the duplicate APK artifact
+        if: inputs.publish && success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          ids=$(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" \
+                  --jq '.artifacts[] | select(.name | startswith("acalc-")) | .id')
+          if [ -z "$ids" ]; then
+            echo "No APK artifact to remove."
+            exit 0
+          fi
+          for id in $ids; do
+            gh api -X DELETE "repos/$REPO/actions/artifacts/$id" && echo "Deleted artifact $id"
+          done
+          echo "APK artifact removed — download it from the release instead." >> "$GITHUB_STEP_SUMMARY"
