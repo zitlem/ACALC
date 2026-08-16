@@ -42,14 +42,19 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,17 +116,19 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     state.rows.forEachIndexed { index, row ->
-                        ConverterRowItem(
-                            unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
-                            value = row.value,
-                            cursorPos = row.cursorPos,
-                            isActive = index == state.activeRowIndex,
-                            liveResult = if (index == state.activeRowIndex) liveResult else null,
-                            onTap = { vm.onRowActivated(index) },
-                            onUnitTap = { unitPickerRowIndex = index },
-                            onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
-                            modifier = Modifier.fillMaxWidth().weight(1f)
-                        )
+                        key(state.selectedCategory, index) {
+                            ConverterRowItem(
+                                unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
+                                value = row.value,
+                                cursorPos = row.cursorPos,
+                                isActive = index == state.activeRowIndex,
+                                liveResult = if (index == state.activeRowIndex) liveResult else null,
+                                onTap = { vm.onRowActivated(index) },
+                                onUnitTap = { vm.onRowActivated(index); unitPickerRowIndex = index },
+                                onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
+                                modifier = Modifier.fillMaxWidth().weight(1f)
+                            )
+                        }
                         HorizontalDivider()
                     }
                     if (hint.isNotEmpty()) {
@@ -148,17 +155,19 @@ fun ConverterScreen(modifier: Modifier = Modifier) {
         } else {
             // Portrait: rows stacked, hint, numpad below
             state.rows.forEachIndexed { index, row ->
-                ConverterRowItem(
-                    unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
-                    value = row.value,
-                    cursorPos = row.cursorPos,
-                    isActive = index == state.activeRowIndex,
-                    liveResult = if (index == state.activeRowIndex) liveResult else null,
-                    onTap = { vm.onRowActivated(index) },
-                    onUnitTap = { unitPickerRowIndex = index },
-                    onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
-                    modifier = Modifier.fillMaxWidth().weight(1f).heightIn(max = 80.dp)
-                )
+                key(state.selectedCategory, index) {
+                    ConverterRowItem(
+                        unitName = unitOptions.getOrNull(row.unitIndex)?.second ?: "",
+                        value = row.value,
+                        cursorPos = row.cursorPos,
+                        isActive = index == state.activeRowIndex,
+                        liveResult = if (index == state.activeRowIndex) liveResult else null,
+                        onTap = { vm.onRowActivated(index) },
+                        onUnitTap = { vm.onRowActivated(index); unitPickerRowIndex = index },
+                        onCursorMoved = { newPos -> vm.onCursorMoved(index, newPos) },
+                        modifier = Modifier.fillMaxWidth().weight(1f).heightIn(max = 80.dp)
+                    )
+                }
                 HorizontalDivider()
             }
             if (hint.isNotEmpty()) {
@@ -210,7 +219,6 @@ private fun ConverterRowItem(
 ) {
     val activeColor = MaterialTheme.colorScheme.primary
     val bgColor = if (isActive) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent
-    val keyboardController = LocalSoftwareKeyboardController.current
 
     Row(
         modifier = modifier
@@ -249,16 +257,6 @@ private fun ConverterRowItem(
                 .padding(horizontal = 10.dp),
             contentAlignment = Alignment.CenterEnd
         ) {
-            // Shared interaction state for expression field (needed in both layout branches)
-            val interactionSourceExpr = remember { MutableInteractionSource() }
-            LaunchedEffect(interactionSourceExpr) {
-                interactionSourceExpr.interactions.collect { keyboardController?.hide() }
-            }
-            val tfvExpr = if (liveResult != null && liveResult != value) TextFieldValue(
-                text = value,
-                selection = TextRange(cursorPos.coerceIn(0, value.length))
-            ) else null
-
             if (liveResult != null && liveResult != value) {
                 // Expression mode — choose 2-line or compact 1-line based on available height.
                 BoxWithConstraints(
@@ -274,18 +272,16 @@ private fun ConverterRowItem(
                                 horizontalAlignment = Alignment.End,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                BasicTextField(
-                                    value = tfvExpr!!,
-                                    onValueChange = { newTfv ->
-                                        if (newTfv.text == value) onCursorMoved(newTfv.selection.start)
-                                        keyboardController?.hide()
-                                    },
+                                RowValueField(
+                                    value = value,
+                                    cursorPos = cursorPos,
+                                    isActive = isActive,
                                     textStyle = MaterialTheme.typography.bodyMedium.copy(
                                         textAlign = TextAlign.End,
                                         color = MaterialTheme.colorScheme.onSurface
                                     ),
-                                    singleLine = true,
-                                    interactionSource = interactionSourceExpr,
+                                    onCursorMoved = onCursorMoved,
+                                    onActivate = onTap,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                                 Text(
@@ -304,18 +300,16 @@ private fun ConverterRowItem(
                                 horizontalAlignment = Alignment.End,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                BasicTextField(
-                                    value = tfvExpr!!,
-                                    onValueChange = { newTfv ->
-                                        if (newTfv.text == value) onCursorMoved(newTfv.selection.start)
-                                        keyboardController?.hide()
-                                    },
+                                RowValueField(
+                                    value = value,
+                                    cursorPos = cursorPos,
+                                    isActive = isActive,
                                     textStyle = MaterialTheme.typography.labelSmall.copy(
                                         textAlign = TextAlign.End,
                                         color = MaterialTheme.colorScheme.onSurface
                                     ),
-                                    singleLine = true,
-                                    interactionSource = interactionSourceExpr,
+                                    onCursorMoved = onCursorMoved,
+                                    onActivate = onTap,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                                 Text(
@@ -334,18 +328,16 @@ private fun ConverterRowItem(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                BasicTextField(
-                                    value = tfvExpr!!,
-                                    onValueChange = { newTfv ->
-                                        if (newTfv.text == value) onCursorMoved(newTfv.selection.start)
-                                        keyboardController?.hide()
-                                    },
+                                RowValueField(
+                                    value = value,
+                                    cursorPos = cursorPos,
+                                    isActive = isActive,
                                     textStyle = MaterialTheme.typography.labelSmall.copy(
                                         textAlign = TextAlign.End,
                                         color = MaterialTheme.colorScheme.onSurface
                                     ),
-                                    singleLine = true,
-                                    interactionSource = interactionSourceExpr,
+                                    onCursorMoved = onCursorMoved,
+                                    onActivate = onTap,
                                     modifier = Modifier.weight(1f)
                                 )
                                 Text(
@@ -362,30 +354,17 @@ private fun ConverterRowItem(
                 }
             } else {
                 // Single-line value display (active or inactive).
-                val displayValue = if (value.isEmpty() && isActive) "" else value
-                val tfv = TextFieldValue(
-                    text = displayValue,
-                    selection = TextRange(cursorPos.coerceIn(0, displayValue.length))
-                )
-                val interactionSourceVal = remember { MutableInteractionSource() }
-                LaunchedEffect(interactionSourceVal) {
-                    interactionSourceVal.interactions.collect { keyboardController?.hide() }
-                }
-                BasicTextField(
-                    value = tfv,
-                    onValueChange = { newTfv ->
-                        if (newTfv.text == displayValue) {
-                            onCursorMoved(newTfv.selection.start)
-                        }
-                        keyboardController?.hide()
-                    },
+                RowValueField(
+                    value = value,
+                    cursorPos = cursorPos,
+                    isActive = isActive,
                     textStyle = MaterialTheme.typography.titleLarge.copy(
                         textAlign = TextAlign.End,
                         color = if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
                                 else MaterialTheme.colorScheme.onSurface
                     ),
-                    singleLine = true,
-                    interactionSource = interactionSourceVal,
+                    onCursorMoved = onCursorMoved,
+                    onActivate = onTap,
                     // Fill the row so the whole box is tappable. Sized to the text alone, the
                     // field was a ~36dp strip floating in a ~123dp row, leaving most of the row
                     // dead: a tap there activated the row but never focused the field, so no
@@ -402,6 +381,61 @@ private fun ConverterRowItem(
             }
         }
     }
+}
+
+/**
+ * The value field of a converter row.
+ *
+ * `activeRowIndex` in the ViewModel is the single source of truth for which row is selected: it
+ * paints the highlight and receives numpad input. This field keeps the text caret in step with it
+ * in both directions — it pulls focus in whenever its row becomes active, and reports focus the
+ * user initiates back out via [onActivate]. Without the latter, a tap landing on the offset
+ * already stored in `cursorPos` (common, since converted rows park the cursor at end-of-text and
+ * the text is right-aligned) produces no `onValueChange`, so the field would take the caret
+ * without the highlight following.
+ */
+@Composable
+private fun RowValueField(
+    value: String,
+    cursorPos: Int,
+    isActive: Boolean,
+    textStyle: TextStyle,
+    onCursorMoved: (Int) -> Unit,
+    onActivate: () -> Unit,
+    modifier: Modifier = Modifier,
+    decorationBox: (@Composable (@Composable () -> Unit) -> Unit)? = null
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+    val interactionSource = remember { MutableInteractionSource() }
+
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { keyboardController?.hide() }
+    }
+    // Also re-runs after the expression/single-line swap: that renders a different call site, so
+    // this composable is disposed and recreated, and the caret has to be pulled back in.
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            runCatching { focusRequester.requestFocus() }
+            // Programmatic focus is not an interaction, so the collector above won't catch it.
+            keyboardController?.hide()
+        }
+    }
+
+    BasicTextField(
+        value = TextFieldValue(value, TextRange(cursorPos.coerceIn(0, value.length))),
+        onValueChange = { newTfv ->
+            if (newTfv.text == value) onCursorMoved(newTfv.selection.start)
+            keyboardController?.hide()
+        },
+        textStyle = textStyle,
+        singleLine = true,
+        interactionSource = interactionSource,
+        modifier = modifier
+            .focusRequester(focusRequester)
+            .onFocusChanged { if (it.isFocused) onActivate() },
+        decorationBox = decorationBox ?: { innerTextField -> innerTextField() }
+    )
 }
 
 @Composable

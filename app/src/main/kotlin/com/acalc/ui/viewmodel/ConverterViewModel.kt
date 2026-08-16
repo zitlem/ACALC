@@ -171,12 +171,16 @@ class ConverterViewModel(
     private val _state: MutableStateFlow<ConverterState>
     val state: StateFlow<ConverterState> get() = _state
 
+    /** The row the user last entered a value into — the row every other row is converted from.
+     *  Distinct from `activeRowIndex`, which only tracks selection (highlight + caret). */
+    private var sourceRowIndex: Int = 0
+
     init {
         val saved = storage.load()
         if (saved != null) {
-            categoryStateMap = saved.categoryMap.toMutableMap()
+            categoryStateMap = saved.categoryMap.mapValues { (_, s) -> s.clampActive() }.toMutableMap()
             _state = MutableStateFlow(
-                saved.categoryMap[saved.currentCategory]
+                categoryStateMap[saved.currentCategory]
                     ?: ConverterState(selectedCategory = saved.currentCategory,
                                       rows = defaultRowsFor(saved.currentCategory))
             )
@@ -184,6 +188,7 @@ class ConverterViewModel(
             categoryStateMap = mutableMapOf()
             _state = MutableStateFlow(ConverterState())
         }
+        sourceRowIndex = _state.value.activeRowIndex
     }
 
     /** Sets state, syncs the category map, and persists. */
@@ -201,13 +206,24 @@ class ConverterViewModel(
             selectedCategory = category,
             rows = defaultRowsFor(category)
         )
-        setState(next)
+        val clamped = next.clampActive()
+        // Each category carries its own values, so the previous category's source row is
+        // meaningless here.
+        sourceRowIndex = clamped.activeRowIndex
+        setState(clamped)
     }
+
+    /** Row counts differ per category and persisted state can outlive a layout change, so an
+     *  index read back from storage is not guaranteed to address an existing row. */
+    private fun ConverterState.clampActive(): ConverterState =
+        if (rows.isEmpty() || activeRowIndex in rows.indices) this
+        else copy(activeRowIndex = activeRowIndex.coerceIn(0, rows.lastIndex))
 
     // MARK: — Row activation
 
     fun onRowActivated(index: Int) {
         val state = _state.value
+        if (index !in state.rows.indices) return
         if (index == state.activeRowIndex) return
         val rows = state.rows.toMutableList()
         commitExpression(rows, state.activeRowIndex)
@@ -245,8 +261,10 @@ class ConverterViewModel(
         val state = _state.value
         val activeIndex = state.activeRowIndex
         val rows = state.rows.toMutableList()
-        val current = rows[activeIndex].value
-        val cursor = rows[activeIndex].cursorPos.coerceIn(0, current.length)
+        val activeRow = rows.getOrNull(activeIndex) ?: return
+        sourceRowIndex = activeIndex
+        val current = activeRow.value
+        val cursor = activeRow.cursorPos.coerceIn(0, current.length)
 
         var newCursor = cursor
         val newValue = when (key) {
@@ -334,17 +352,28 @@ class ConverterViewModel(
 
     // MARK: — Unit selection
 
+    /**
+     * Re-derives [rowIndex] in its new unit from whichever row the user last typed into, so a
+     * unit swap on a derived row preserves the quantity. When the swapped row *is* the source,
+     * there is nothing to derive from and the typed value is reinterpreted in the new unit
+     * instead ("I entered 1000, but I meant metres").
+     *
+     * The source is deliberately [sourceRowIndex] rather than `activeRowIndex`: merely selecting
+     * a row — which tapping the unit button now does, so the highlight follows the touch — must
+     * not change what the other rows are computed from.
+     */
     fun onUnitChanged(rowIndex: Int, unitIndex: Int) {
         val state = _state.value
         val rows = state.rows.toMutableList()
+        if (rowIndex !in rows.indices) return
         rows[rowIndex] = rows[rowIndex].copy(unitIndex = unitIndex)
         setState(state.copy(rows = rows))
 
-        val activeIndex = state.activeRowIndex
-        val activeValue = rows[activeIndex].value
-        if (activeValue.isEmpty()) return
-        val evaluated = evaluator.evaluate(activeValue) ?: return
-        recomputeFrom(_state.value, rows, activeIndex, BigDecimal(evaluated.toString()))
+        val sourceIndex = sourceRowIndex.takeIf { it in rows.indices } ?: return
+        val sourceValue = rows[sourceIndex].value
+        if (sourceValue.isEmpty()) return
+        val evaluated = evaluator.evaluate(sourceValue) ?: return
+        recomputeFrom(_state.value, rows, sourceIndex, BigDecimal(evaluated.toString()))
     }
 
     fun onEnter() {
@@ -370,8 +399,10 @@ class ConverterViewModel(
         val state = _state.value
         val activeIndex = state.activeRowIndex
         val rows = state.rows.toMutableList()
+        val activeRow = rows.getOrNull(activeIndex) ?: return
+        sourceRowIndex = activeIndex
         val displayValue = formatConverted(BigDecimal(evaluated.toString()))
-        rows[activeIndex] = rows[activeIndex].copy(value = displayValue, cursorPos = displayValue.length)
+        rows[activeIndex] = activeRow.copy(value = displayValue, cursorPos = displayValue.length)
         recomputeFrom(state, rows, activeIndex, BigDecimal(evaluated.toString()))
     }
 

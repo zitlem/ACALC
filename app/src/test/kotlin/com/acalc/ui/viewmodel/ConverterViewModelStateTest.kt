@@ -314,6 +314,47 @@ class ConverterViewModelStateTest {
         assertEquals(count - 1, vm.state.value.activeRowIndex)
     }
 
+    // ── Stale persisted state ──
+
+    /**
+     * Row counts differ per category (4 for length, 3 for temperature) and persisted state
+     * outlives layout changes, so a stored index can address a row that no longer exists. Left
+     * unclamped it highlights nothing and the first numpad press throws.
+     */
+    @Test
+    fun `an out-of-range persisted activeRowIndex is clamped on load`() {
+        val rows = defaultLengthRowCount()
+        storage.saved = ConverterSavedState(
+            currentCategory = UnitCategory.LENGTH,
+            categoryMap = mapOf(
+                UnitCategory.LENGTH to ConverterState(
+                    selectedCategory = UnitCategory.LENGTH,
+                    rows = ConverterState().rows,
+                    activeRowIndex = rows + 5
+                )
+            )
+        )
+        val restored = ConverterViewModel(storage)
+
+        assertEquals(rows - 1, restored.state.value.activeRowIndex)
+        restored.onNumpadKey("7")   // must not throw
+        assertEquals("7", restored.state.value.rows[rows - 1].value)
+    }
+
+    @Test
+    fun `switching to a category with fewer rows clamps the active row`() {
+        vm.onFocusNextRow()
+        vm.onFocusNextRow()
+        vm.onFocusNextRow()
+        assertEquals(3, vm.state.value.activeRowIndex)   // foot
+
+        vm.onCategorySelected(UnitCategory.TEMPERATURE)  // only three scales
+        assertTrue(vm.state.value.activeRowIndex in vm.state.value.rows.indices)
+        vm.onNumpadKey("7")                              // must not throw
+    }
+
+    private fun defaultLengthRowCount() = ConverterState().rows.size
+
     // ── Hints and unit lists ──
 
     @Test
